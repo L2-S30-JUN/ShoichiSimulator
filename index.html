@@ -170,7 +170,10 @@ const CURSOR_SIZE=32;
 // ============================================================
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 function beep(f,d,t='square',v=.1){const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
-// WAV 효과음
+// WAV 효과음 (프리로드)
+const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger'];
+const sfxCache={};
+sfxNames.forEach(name=>{const a=new Audio(`sfx/${name}.wav`);a.load();sfxCache[name]=a;});
 function playSfx(name,vol=0.5){const a=new Audio(`sfx/${name}.wav`);a.volume=vol;a.play().catch(()=>{});}
 function sfxAtk(){playSfx('attack')}
 function sfxAtkHit(){playSfx('attackhit')}
