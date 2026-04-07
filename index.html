@@ -100,7 +100,7 @@ const CONF = {
   // Passive
   stackMax: 5,
   stackDur: 5,                   // seconds
-  passiveThrowRange: 5 * PX,
+  passiveThrowRange: 5.94 * PX,
   passiveThrowDmg: 50,
   enhancedAtkDmg: 30,
 
@@ -565,7 +565,7 @@ function castW(){
   for(let i=0;i<daggers.length;i++){
     const dg=daggers[i];
     const dm=dist(mouse,dg);
-    if(dm<CONF.daggerPickupR && dm<bestD){
+    if(dm<CONF.daggerPickupR+CURSOR_SIZE/2 && dm<bestD){
       bestD=dm;bestTarget={...dg,idx:i};bestType='dagger';
     }
   }
@@ -674,9 +674,14 @@ function executeWTeleport(){
   P.dashing=false;
   // 버퍼된 스킬 실행
   if(skillBuffer){flushBuffer();}
-  // W→적 순간이동 후 0.1초 윈드업 → 평타
-  else if(P.dashType==='enemy'){
-    const etgt=dummies.find(d=>d.alive&&Math.hypot(d.x-tgt.x,d.y-tgt.y)<d.r+10);
+  // W 순간이동 후 사거리 내 적 자동평타
+  else {
+    let etgt=null, ed=Infinity;
+    for(const d of dummies){
+      if(!d.alive)continue;
+      const dd=dist(P,d);
+      if(dd<=CONF.atkRange+d.r && dd<ed){ed=dd;etgt=d;}
+    }
     if(etgt){P.atkWindup=true;P.atkWindupTimer=0.2;P.atkWindupTarget=etgt;P.atkTarget=etgt;moveTarget=null;sfxAtk();}
   }
 }
@@ -1163,11 +1168,6 @@ function draw(){
 
   // R casting indicator
   if(P.rCasting){
-    const prog=1-P.rCastTimer/CONF.rCastTime;
-    ctx.strokeStyle='rgba(200,100,255,.4)';ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(px,py,CONF.rInnerRadius,0,Math.PI*2*prog);ctx.stroke();
-    ctx.fillStyle='rgba(200,100,255,.08)';
-    ctx.beginPath();ctx.arc(px,py,CONF.rInnerRadius,0,Math.PI*2);ctx.fill();
   }
 
   // W range (when hovering W key? always subtle)
@@ -1193,7 +1193,7 @@ function draw(){
   }
 
   // Body
-  ctx.fillStyle=P.dashing?'#8cf':P.rCasting?'#a6f':P.enhancedAA?'#e90':'#3878b8';
+  ctx.fillStyle=P.dashing?'#8cf':P.enhancedAA?'#e90':'#3878b8';
   ctx.beginPath();ctx.arc(px,py,P.r,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle=P.enhancedAA?'#f80':'#2558a0';ctx.lineWidth=2;ctx.stroke();
 
@@ -1349,8 +1349,8 @@ function draw(){
       ctx.strokeStyle=`rgba(220,50,50,${a*.5})`;ctx.lineWidth=CONF.wWidth*0.5*(1-p);ctx.lineCap='round';
       ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
     }else if(e.type==='rslash'){
-      ctx.strokeStyle=`rgba(180,120,255,${a})`;ctx.lineWidth=e.w*(1-p*.5);ctx.lineCap='round';
-      ctx.shadowColor='#a6f';ctx.shadowBlur=10*a;
+      ctx.strokeStyle=`rgba(162,22,67,${a})`;ctx.lineWidth=e.w*(1-p*.5);ctx.lineCap='round';
+      ctx.shadowColor='#A21643';ctx.shadowBlur=10*a;
       ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
       ctx.shadowBlur=0;
       ctx.strokeStyle=`rgba(255,255,255,${a*.6})`;ctx.lineWidth=2;
@@ -1364,9 +1364,9 @@ function draw(){
       ctx.beginPath();ctx.arc(e.x,e.y,sz,0,Math.PI*2);ctx.fill();
       ctx.shadowBlur=0;
     }else if(e.type==='raoe'){
-      ctx.strokeStyle=`rgba(200,120,255,${a*.6})`;ctx.lineWidth=3;
+      ctx.strokeStyle=`rgba(162,22,67,${a*.6})`;ctx.lineWidth=3;
       ctx.beginPath();ctx.arc(e.x,e.y,e.r*(0.6+p*.4),0,Math.PI*2);ctx.stroke();
-      ctx.fillStyle=`rgba(200,120,255,${a*.1})`;
+      ctx.fillStyle=`rgba(162,22,67,${a*.1})`;
       ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
     }
   }
