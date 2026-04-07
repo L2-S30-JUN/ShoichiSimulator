@@ -1398,7 +1398,7 @@ function draw(){
 
   // 커스텀 커서
   if(cursorImg.complete){
-    ctx.drawImage(cursorImg,mouse.x,mouse.y,CURSOR_SIZE,CURSOR_SIZE);
+    ctx.drawImage(cursorImg,mouse.x-CURSOR_SIZE/2,mouse.y-CURSOR_SIZE/2,CURSOR_SIZE,CURSOR_SIZE);
   }
 }
 
