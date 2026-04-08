@@ -105,19 +105,19 @@ const CONF = {
   enhancedAtkDmg: 30,
 
   // Q (일반: 3m x 1.5m 직사각형, 강화: 3m 사거리 1.5m 폭 부채꼴)
-  qRange: 140,
-  qWidth: 60,
+  qRange: 170,
+  qWidth: 75,
   qDmg: 120,
   qCd: 8,
   qCdReduce: 3,
   qEnhDur: 10,                   // enhanced Q lasts 10s
-  qEnhRange: 180,                // 강화Q 부채꼴 반지름 180px
-  qEnhHalfAngle: Math.PI/5,          // 부채꼴 반각 36°
+  qEnhRange: 3 * PX,              // 강화Q 부채꼴 반지름 3m
+  qEnhHalfAngle: Math.PI/4.8,        // 부채꼴 반각 37.5° (총 75°)
 
   // W
   wRange: 5.5 * PX,              // 5.5m
   wDmg: 100,
-  wWidth: 1.8 * PX,
+  wWidth: 2.5 * PX,
   wCd: 12,
   wSpeed: 18 * PX * dt,
 
@@ -209,13 +209,14 @@ function ptInRect(px,py,cx,cy,a,hw,hh){
   const ly=-dx*s+dy*c;
   return Math.abs(lx)<=hw && Math.abs(ly)<=hh;
 }
-function ptInFan(px,py,cx,cy,a,r,halfAng){
+function ptInFan(px,py,cx,cy,a,r,halfAng,objR){
   const d=Math.hypot(px-cx,py-cy);
   if(d>r)return false;
   let da=Math.atan2(py-cy,px-cx)-a;
   while(da>Math.PI)da-=2*Math.PI;
   while(da<-Math.PI)da+=2*Math.PI;
-  return Math.abs(da)<=halfAng;
+  const angMargin=objR&&d>0?Math.asin(Math.min(1,objR/d)):0;
+  return Math.abs(da)<=halfAng+angMargin;
 }
 function ptSegDist(px,py,x1,y1,x2,y2){
   const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;
@@ -421,7 +422,7 @@ function resolveAttack(){
     hitDummy(tgt, CONF.enhancedAtkDmg + 40, atkAngle, true);
     sfxAtkHit();
     const behind=atkAngle;
-    const dgX=tgt.x+Math.cos(behind)*50, dgY=tgt.y+Math.sin(behind)*50;
+    const dgX=tgt.x+Math.cos(behind)*1.2*PX, dgY=tgt.y+Math.sin(behind)*1.2*PX;
     effects.push({type:'dagdrop',x:dgX,y:dgY,sx:tgt.x,sy:tgt.y,t:0,mt:9999,spawnTime:performance.now()+600}); // 단검 생성 시 제거
     setTimeout(()=>{
       spawnDagger(dgX,dgY);
@@ -497,7 +498,7 @@ function castQ(){
       let anyHit=false;
       for(const d of dummies){
         if(!d.alive)continue;
-        if(ptInFan(d.x,d.y,castX,castY,a,CONF.qEnhRange+d.r,CONF.qEnhHalfAngle)){
+        if(ptInFan(d.x,d.y,castX,castY,a,CONF.qEnhRange+d.r,CONF.qEnhHalfAngle,d.r)){
           hitDummy(d,CONF.qDmg,a,true);
           anyHit=true;
         }
@@ -661,7 +662,7 @@ function executeWTeleport(){
     const wPathCx=(startX+P.x)/2, wPathCy=(startY+P.y)/2;
     const wPathA=Math.atan2(wPathDy,wPathDx);
     const wHalfLong=wPathLen/2+CONF.daggerPickupR*1.5; // 가로: 경로+여유
-    const wHalfShort=CONF.daggerPickupR*1.5;            // 세로: 단검 원형 반지름의 1.5배
+    const wHalfShort=CONF.daggerPickupR*2;                // 세로: 단검 반지름의 2배
     for(let i=daggers.length-1;i>=0;i--){
       if(ptInRect(daggers[i].x,daggers[i].y,wPathCx,wPathCy,wPathA,wHalfLong,wHalfShort)){
         pickupDagger(i);
@@ -713,7 +714,7 @@ function castE(){
     const eProj={
       x:P.x+Math.cos(a)*20, y:P.y+Math.sin(a)*20,
       vx:Math.cos(a)*27, vy:Math.sin(a)*27,
-      dmg:CONF.eDmg, r:7, life:12, fromPassive:false,
+      dmg:CONF.eDmg, r:20, life:12, fromPassive:false,
       isE:true, eAngle:a, hitList:new Set(), eHit:false,
     };
     projectiles.push(eProj);
@@ -994,7 +995,7 @@ function update(rdt){
           log('협상 적중! 슬로우 + 마크 부여');
           // Dagger behind enemy (delayed)
           const behind=Math.atan2(p.vy,p.vx);
-          const edgX=d.x+Math.cos(behind)*0.8*PX, edgY=d.y+Math.sin(behind)*0.8*PX;
+          const edgX=d.x+Math.cos(behind)*1.2*PX, edgY=d.y+Math.sin(behind)*1.2*PX;
           effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000}); // 단검 생성 시 제거
           setTimeout(()=>{
             spawnDagger(edgX,edgY);
