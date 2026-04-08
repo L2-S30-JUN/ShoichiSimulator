@@ -24,6 +24,7 @@ canvas{cursor:none;display:block}
 #passive-ui .full{color:#f80;font-weight:bold;font-size:12px;display:none;margin-top:4px}
 #log{position:fixed;bottom:90px;left:8px;font-size:11px;color:#888;background:rgba(0,0,0,.5);padding:6px 10px;border-radius:6px;max-height:120px;overflow:hidden;pointer-events:none;width:260px}
 #log div{margin-bottom:2px;opacity:.9}
+#credit{position:fixed;bottom:8px;right:8px;font-size:11px;color:#666;background:rgba(0,0,0,.4);padding:4px 8px;border-radius:4px;pointer-events:none}
 #cdr-ui{position:fixed;top:80px;right:8px;background:rgba(0,0,0,.6);padding:10px 14px;border-radius:6px;font-size:13px;user-select:none}
 #cdr-ui .label{color:#aaa;margin-bottom:6px}
 #cdr-ui .row{display:flex;align-items:center;gap:8px}
@@ -63,12 +64,13 @@ canvas{cursor:none;display:block}
 <div id="log"></div>
 <canvas id="c"></canvas>
 <div id="hud">
-  <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoq.png"><div class="cd" id="cQ"></div></div>
-  <div class="sk ready" id="bW"><span class="key">W</span><img class="icon-img" src="icon/show.png"><div class="cd" id="cW"></div></div>
-  <div class="sk ready" id="bE"><span class="key">E</span><img class="icon-img" src="icon/shoe.png"><div class="cd" id="cE"></div></div>
-  <div class="sk ready" id="bR"><span class="key">R</span><img class="icon-img" src="icon/shor.png"><div class="cd" id="cR"></div></div>
-  <div class="sk ready" id="bF" style="margin-left:12px;border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/Blink.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
+  <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoqfix.png"><div class="cd" id="cQ"></div></div>
+  <div class="sk ready" id="bW"><span class="key">W</span><img class="icon-img" src="icon/showfix.png"><div class="cd" id="cW"></div></div>
+  <div class="sk ready" id="bE"><span class="key">E</span><img class="icon-img" src="icon/shoefix.png"><div class="cd" id="cE"></div></div>
+  <div class="sk ready" id="bR"><span class="key">R</span><img class="icon-img" src="icon/shorfix.png"><div class="cd" id="cR"></div></div>
+  <div class="sk ready" id="bF" style="margin-left:12px;border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/blinkfix.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
 </div>
+<div id="credit">본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
 
 <script>
 // ============================================================
@@ -510,7 +512,7 @@ function castQ(){
       addFanEffect(castX,castY,a,CONF.qEnhRange,CONF.qEnhHalfAngle,'#dd2222');
       P.qEnhanced=false;P.qEnhTimer=0;
       document.getElementById('bQ').classList.remove('enhanced');
-      document.getElementById('qIcon').src='icon/shoq.png';
+      document.getElementById('qIcon').src='icon/shoqfix.png';
       P.qCd=Math.max(0,applyCdr(CONF.qCd)-4);
       log('강화 Q 사용 → 단검 생성, 쿨다운 -4초');
     } else {
@@ -532,7 +534,7 @@ function castQ(){
         P.qEnhanced=true;
         P.qEnhTimer=CONF.qEnhDur;
         document.getElementById('bQ').classList.add('enhanced');
-        document.getElementById('qIcon').src='icon/shoq2.png';
+        document.getElementById('qIcon').src='icon/shoq2fix.png';
         log('Q 적중! 쿨다운 시작 (-3초), 강화Q 준비');
       } else {
         P.qCd=applyCdr(CONF.qCd);
@@ -927,7 +929,7 @@ function update(rdt){
   if(P.qEnhTimer>0){
     P.qEnhTimer-=tick;
     if(P.qEnhTimer<=0&&P.qEnhanced){P.qEnhanced=false;
-      document.getElementById('bQ').classList.remove('enhanced');document.getElementById('qIcon').src='icon/shoq.png';log('강화Q 만료')}
+      document.getElementById('bQ').classList.remove('enhanced');document.getElementById('qIcon').src='icon/shoqfix.png';log('강화Q 만료')}
   }
 
   // Q casting (시전 중 이동 불가)
