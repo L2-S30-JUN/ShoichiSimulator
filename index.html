@@ -115,7 +115,7 @@ const CONF = {
   qEnhHalfAngle: Math.PI/5,          // 부채꼴 반각 36°
 
   // W
-  wRange: 384,              // 1920x1080 기준 384px 반지름
+  wRange: 5.5 * PX,              // 5.5m
   wDmg: 100,
   wWidth: 1.8 * PX,
   wCd: 12,
@@ -126,7 +126,7 @@ const CONF = {
   eWidth: 1.1 * PX,
   eDmg: 140,
   eCd: 9,
-  eHopDist: 2 * PX,
+  eHopDist: 1.5 * PX,
   eSlow: 0.5,
   eSlowDur: 1.5,
   eMarkDur: 5,
@@ -163,7 +163,8 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 const cursorImg=new Image();cursorImg.src='icon/cursor.png';
-const CURSOR_SIZE=32;
+const CURSOR_W=74;
+const CURSOR_H=Math.round(74*347/619);
 
 // ============================================================
 // AUDIO
@@ -484,10 +485,10 @@ function castQ(){
   P.angle=a;
   moveTarget=null;
   P.atkTarget=null;
-  P.qCasting=true;P.qCastTimer=0.4; // 선딜 0.1초 + 후딜 0.3초
+  const wasEnhanced=P.qEnhanced;
+  P.qCasting=true;P.qCastTimer=wasEnhanced?0.267:0.1; // Q: 선딜 0.1초, Q2: 선딜 0.1초 + 후딜 0.167초
 
   // 0.1초 선딜 후 판정
-  const wasEnhanced=P.qEnhanced;
   const castX=P.x, castY=P.y;
   if(wasEnhanced) sfxQenh(); else sfxQ();
   setTimeout(()=>{
@@ -565,7 +566,7 @@ function castW(){
   for(let i=0;i<daggers.length;i++){
     const dg=daggers[i];
     const dm=dist(mouse,dg);
-    if(dm<CONF.daggerPickupR+CURSOR_SIZE/2 && dm<bestD){
+    if(dm<CONF.daggerPickupR+20 && dm<bestD){
       bestD=dm;bestTarget={...dg,idx:i};bestType='dagger';
     }
   }
@@ -698,25 +699,26 @@ function castE(){
 
   // E 시전: 0.1초 선딜 후 단검 발사, 0.5초 후퇴 (총 0.6초, 0.3초 후 캔슬 가능)
   P.eCasting=true;
-  P.eCastTimer=0.35;
+  P.eCastTimer=0.4;
   P.eCanCancel=false;
   P.eHopA=a;
   P.eHopActive=false;
   moveTarget=null;
   P.atkTarget=null;
-  setTimeout(()=>{P.eCanCancel=true;flushBuffer();},200); // 0.2초 후 스킬 사용 가능
+  setTimeout(()=>{P.eCanCancel=true;},200); // 0.2초 후 스킬 사용 가능 (선입력 대기)
+  setTimeout(()=>{flushBuffer();},300); // 0.3초 후 선입력 실행
 
-  // 0.1초 후 단검 발사 + 후퇴 시작
+  // 0.2초(시전시간) 후 단검 발사 + 후퇴 시작
   setTimeout(()=>{
     const eProj={
       x:P.x+Math.cos(a)*20, y:P.y+Math.sin(a)*20,
-      vx:Math.cos(a)*10, vy:Math.sin(a)*10,
-      dmg:CONF.eDmg, r:7, life:30, fromPassive:false,
+      vx:Math.cos(a)*27, vy:Math.sin(a)*27,
+      dmg:CONF.eDmg, r:7, life:12, fromPassive:false,
       isE:true, eAngle:a, hitList:new Set(), eHit:false,
     };
     projectiles.push(eProj);
     P.eHopActive=true;
-  },100);
+  },200);
 
   P.eCd=applyCdr(CONF.eCd);
   log('협상 시전');
@@ -920,7 +922,7 @@ function update(rdt){
     P.eCastTimer-=tick;
     // 단검 발사 후에만 뒤로 물러남
     if(P.eHopActive){
-      const hopSpeed=7*PX*tick;
+      const hopSpeed=7.5*PX*tick;
       const nx=P.x-Math.cos(P.eHopA)*hopSpeed;
       const ny=P.y-Math.sin(P.eHopA)*hopSpeed;
       if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny}
@@ -1398,7 +1400,7 @@ function draw(){
 
   // 커스텀 커서
   if(cursorImg.complete){
-    ctx.drawImage(cursorImg,mouse.x-CURSOR_SIZE/2,mouse.y-CURSOR_SIZE/2,CURSOR_SIZE,CURSOR_SIZE);
+    ctx.drawImage(cursorImg,mouse.x-CURSOR_W/2,mouse.y-CURSOR_H/2,CURSOR_W,CURSOR_H);
   }
 }
 
