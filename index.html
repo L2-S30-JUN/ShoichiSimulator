@@ -37,7 +37,7 @@ canvas{cursor:none;display:block}
 <body>
 <div id="info">
   <b>우클릭</b> 이동 / 더미 우클릭 → 평타 &nbsp;<b>좌클릭</b> 평타<br>
-  <b>Q</b> 표리 &nbsp;<b>W</b> 비약(적/단검 대상) &nbsp;<b>E</b> 협상 &nbsp;<b>R</b> 무자비 &nbsp;<b>F</b> 블링크<br>
+  <b>Q</b> 표리 &nbsp;<b>W</b> 비약(적/단검 대상) &nbsp;<b>E</b> 협상 &nbsp;<b>R</b> 무자비 &nbsp;<b>D</b> 은신 &nbsp;<b>F</b> 블링크<br>
   <b>0</b> 쿨초기화 &nbsp;<b>1</b> 쿨감- &nbsp;<b>2</b> 쿨감+ &nbsp;<b>3</b> 더미 생성 &nbsp;<b>4</b> 더미 삭제
 </div>
 <div id="passive-ui">
@@ -68,7 +68,8 @@ canvas{cursor:none;display:block}
   <div class="sk ready" id="bW"><span class="key">W</span><img class="icon-img" src="icon/showfix.png"><div class="cd" id="cW"></div></div>
   <div class="sk ready" id="bE"><span class="key">E</span><img class="icon-img" src="icon/shoefix.png"><div class="cd" id="cE"></div></div>
   <div class="sk ready" id="bR"><span class="key">R</span><img class="icon-img" src="icon/shorfix.png"><div class="cd" id="cR"></div></div>
-  <div class="sk ready" id="bF" style="margin-left:12px;border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/blinkfix.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
+  <div class="sk ready" id="bD" style="margin-left:12px;border-color:#888"><span class="key">D</span><img class="icon-img" src="icon/daggerskill.png" style="width:38px;height:38px"><div class="cd" id="cD"></div></div>
+  <div class="sk ready" id="bF" style="border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/blinkfix.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
 </div>
 <div id="credit">본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
 
@@ -133,7 +134,7 @@ const CONF = {
   eSlowDur: 1.5,
   eMarkDur: 5,
   eMarkDmgBonus: 0.25,
-  eDaggerDelay: 0.6,              // dagger appears 0.6s after hit
+  eDaggerDelay: 0.667,            // dagger appears 40/60s after hit
 
   // R
   rInnerRadius: 178,              // 1920x1080 기준 178px
@@ -151,6 +152,12 @@ const CONF = {
   // Blink (점멸)
   blinkRange: 3 * PX,             // 3m
   blinkCd: 40,
+
+  // D - 은신
+  dCd: 20,
+  dDuration: 2,                   // 은신 지속 2초
+  dSpeedBonus: 0.25,              // 이동속도 25% 증가
+  dRecastWindow: 3,               // 재사용 가능 시간 3초
 };
 
 // ============================================================
@@ -174,7 +181,7 @@ const CURSOR_H=Math.round(74*347/619);
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 function beep(f,d,t='square',v=.1){const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
 // WAV 효과음 (프리로드)
-const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger'];
+const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger','daggerskill','daggerskill2','cloakend'];
 const sfxCache={};
 sfxNames.forEach(name=>{const a=new Audio(`sfx/${name}.wav`);a.load();sfxCache[name]=a;});
 function playSfx(name,vol=0.5){const a=new Audio(`sfx/${name}.wav`);a.volume=vol;a.play().catch(()=>{});}
@@ -279,8 +286,11 @@ const P = {
   qCasting: false, qCastTimer: 0,
   // E casting (1초 시전, 0.3초 후 스킬 캔슬 가능)
   eCasting: false, eCastTimer: 0, eCanCancel: false,
+  _eCastId: 0,
   // Blink
   blinkCd: 0,
+  // D - 은신
+  dCd: 0, dActive: false, dTimer: 0, dRecastTimer: 0, dPhase: 0, // 0=ready, 1=은신중/재사용대기
 };
 
 const dummies = [];
@@ -426,11 +436,11 @@ function resolveAttack(){
     sfxAtkHit();
     const behind=atkAngle;
     const dgX=tgt.x+Math.cos(behind)*1.2*PX, dgY=tgt.y+Math.sin(behind)*1.2*PX;
-    effects.push({type:'dagdrop',x:dgX,y:dgY,sx:tgt.x,sy:tgt.y,t:0,mt:9999,spawnTime:performance.now()+600}); // 단검 생성 시 제거
+    effects.push({type:'dagdrop',x:dgX,y:dgY,sx:tgt.x,sy:tgt.y,t:0,mt:9999,spawnTime:performance.now()+667}); // 단검 생성 시 제거
     setTimeout(()=>{
       spawnDagger(dgX,dgY);
       log('강화 평타 단검 생성 (적 뒤)');
-    }, 600);
+    }, 667);
     log('⚡ 강화 공격!');
   } else {
     hitDummy(tgt, 40, atkAngle, false);
@@ -455,8 +465,8 @@ function processAutoAttack(){
   } else {
     // 범위 밖 → 대상 쪽으로 걸어감
     const a=ang(P,P.atkTarget);
-    const nx=P.x+Math.cos(a)*CONF.moveSpeed*tick;
-    const ny=P.y+Math.sin(a)*CONF.moveSpeed*tick;
+    const nx=P.x+Math.cos(a)*CONF.moveSpeed*(1+(P.dActive?CONF.dSpeedBonus:0))*tick;
+    const ny=P.y+Math.sin(a)*CONF.moveSpeed*(1+(P.dActive?CONF.dSpeedBonus:0))*tick;
     if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny;P.angle=a}
   }
 }
@@ -687,7 +697,7 @@ function executeWTeleport(){
       const dd=dist(P,d);
       if(dd<=CONF.atkRange+d.r && dd<ed){ed=dd;etgt=d;}
     }
-    if(etgt){P.atkWindup=true;P.atkWindupTimer=0.2;P.atkWindupTarget=etgt;P.atkTarget=etgt;moveTarget=null;sfxAtk();}
+    if(etgt){P.atkWindup=true;P.atkWindupTimer=0.167;P.atkWindupTarget=etgt;P.atkTarget=etgt;moveTarget=null;sfxAtk();}
   }
 }
 
@@ -713,17 +723,19 @@ function castE(){
   setTimeout(()=>{flushBuffer();},300); // 0.3초 후 선입력 실행
 
   // 0.2초(시전시간) 후 단검 발사 + 후퇴 시작
+  const eCastX=P.x, eCastY=P.y;
   setTimeout(()=>{
     const eProj={
-      x:P.x+Math.cos(a)*20, y:P.y+Math.sin(a)*20,
+      x:eCastX+Math.cos(a)*20, y:eCastY+Math.sin(a)*20,
       vx:Math.cos(a)*27, vy:Math.sin(a)*27,
       dmg:CONF.eDmg, r:35, life:12, fromPassive:false,
       isE:true, eAngle:a, hitList:new Set(), eHit:false,
     };
-    // 겹쳐있는 더미 즉시 적중
+    // 겹쳐있는 더미 즉시 적중 (시전 위치 기준)
+    const ePt={x:eCastX,y:eCastY};
     for(const d of dummies){
       if(!d.alive)continue;
-      if(dist(P,d)<P.r+d.r){
+      if(dist(ePt,d)<P.r+d.r){
         hitDummy(d,CONF.eDmg,a,true);
         eProj.hitList.add(d);
         d.slow=CONF.eSlow;d.slowTimer=CONF.eSlowDur;
@@ -738,7 +750,7 @@ function castE(){
       }
     }
     if(!eProj.eHit) projectiles.push(eProj);
-    P.eHopActive=true;
+    if(P.eCasting) P.eHopActive=true;
   },200);
 
   P.eCd=applyCdr(CONF.eCd);
@@ -843,6 +855,7 @@ function hitDummy(d, dmg, dir, grantStack){
   effects.push({type:'dmg',x:d.x,y:d.y-d.r-15,t:0,mt:40,val:dmg});
   shake.t=3;shake.m=2;
   if(grantStack)addStack();
+  if(P.dActive){P.dActive=false;P.dTimer=0;playSfx('cloakend');log('공격 적중 → 은신 해제');}
 }
 
 // ============================================================
@@ -879,6 +892,69 @@ function castBlink(){
 }
 
 // ============================================================
+// D - 은신
+// ============================================================
+let dPending=null;
+function executeD(tgt){
+  if(P.eCasting){P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P._eCastId++;}
+  P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
+  const behindA=-Math.PI/3;
+  P.x=tgt.x+Math.cos(behindA)*80;
+  P.y=tgt.y+Math.sin(behindA)*80;
+  P.angle=ang(P,tgt);
+  moveTarget=null;
+  dPending=null;
+  P.dActive=false;
+  P.dTimer=0;
+  P.dRecastTimer=0;
+  P.dPhase=0;
+  P.dCd=CONF.dCd;
+  playSfx('daggerskill2');
+  // D2 이후 자동평타
+  if(tgt.alive){P.atkWindup=true;P.atkWindupTimer=0.167;P.atkWindupTarget=tgt;P.atkTarget=tgt;sfxAtk();}
+  log('은신 순간이동!');
+}
+function checkDPending(){
+  if(!dPending||P.dPhase!==1)return;
+  if(!dPending.alive){dPending=null;return;}
+  if(dist(P,dPending)<=CONF.atkRange+dPending.r){
+    executeD(dPending);
+  } else {
+    moveTarget={x:dPending.x,y:dPending.y};
+  }
+}
+function castD(){
+  if(P.dCd>0)return;
+  if(P.dPhase===0){
+    // 1차: 은신 시작
+    P.dActive=true;
+    P.dTimer=CONF.dDuration;
+    P.dRecastTimer=CONF.dRecastWindow;
+    P.dPhase=1;
+    playSfx('daggerskill');
+    log('은신! 이동속도 +25%');
+  } else if(P.dPhase===1){
+    // 2차: 적 뒤로 순간이동
+    let bestTgt=null, bestD=Infinity;
+    for(const d of dummies){
+      if(!d.alive)continue;
+      const dm=dist(mouse,d);
+      if(dm<d.r+30 && dm<bestD){bestD=dm;bestTgt=d;}
+    }
+    if(!bestTgt){log('D: 대상 없음');return;}
+    const dd=dist(P,bestTgt);
+    if(dd<=CONF.atkRange+bestTgt.r){
+      executeD(bestTgt);
+    } else {
+      // 사거리 밖 → 대상 쪽으로 이동
+      dPending=bestTgt;
+      moveTarget={x:bestTgt.x,y:bestTgt.y};
+      log('D: 대상 접근 중...');
+    }
+  }
+}
+
+// ============================================================
 // EFFECTS
 // ============================================================
 function addSlash(x,y,a,len,col,w){
@@ -904,6 +980,9 @@ function update(rdt){
   if(P.eCd>0)P.eCd-=tick;
   if(P.rCd>0)P.rCd-=tick;
   if(P.blinkCd>0)P.blinkCd-=tick;
+  if(P.dCd>0)P.dCd-=tick;
+  if(P.dTimer>0){P.dTimer-=tick;if(P.dTimer<=0){P.dActive=false;playSfx('cloakend');log('은신 해제');}}
+  if(P.dRecastTimer>0){P.dRecastTimer-=tick;if(P.dRecastTimer<=0&&P.dPhase===1){P.dPhase=0;P.dCd=CONF.dCd;log('은신 재사용 시간 만료');}}
   if(P.lockTimer>0){P.lockTimer-=tick;if(P.lockTimer<=0){P.locked=false;flushBuffer();}}
   if(P.swinging){P.swingTimer-=tick;if(P.swingTimer<=0)P.swinging=false;}
   // 평타 적중 대기 (0.2초 후 적중, 이동 시 취소)
@@ -967,6 +1046,7 @@ function update(rdt){
 
   // W pending (범위 밖 대상 접근 후 자동 시전)
   checkWPending();
+  checkDPending();
 
   // Auto-attack target (우클릭 타겟팅)
   processAutoAttack();
@@ -978,8 +1058,8 @@ function update(rdt){
     if(d<4){moveTarget=null}
     else{
       const a=ang(P,moveTarget);
-      const nx=P.x+Math.cos(a)*CONF.moveSpeed*tick;
-      const ny=P.y+Math.sin(a)*CONF.moveSpeed*tick;
+      const nx=P.x+Math.cos(a)*CONF.moveSpeed*(1+(P.dActive?CONF.dSpeedBonus:0))*tick;
+      const ny=P.y+Math.sin(a)*CONF.moveSpeed*(1+(P.dActive?CONF.dSpeedBonus:0))*tick;
       if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny;P.angle=a}
       else{
         if(!wallBlock(nx,P.y,P.r))P.x=nx;
@@ -1071,6 +1151,7 @@ function update(rdt){
   updateSkillUI('cW','bW',P.wCd,CONF.wCd);
   updateSkillUI('cE','bE',P.eCd,CONF.eCd);
   updateSkillUI('cR','bR',P.rCd,CONF.rCd);
+  updateSkillUI('cD','bD',P.dCd,CONF.dCd);
   updateSkillUI('cF','bF',P.blinkCd,CONF.blinkCd);
 }
 
@@ -1219,6 +1300,7 @@ function draw(){
   }
 
   // Body
+  ctx.globalAlpha=P.dActive?0.4:1;
   ctx.fillStyle=P.dashing?'#8cf':P.enhancedAA?'#e90':'#3878b8';
   ctx.beginPath();ctx.arc(px,py,P.r,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle=P.enhancedAA?'#f80':'#2558a0';ctx.lineWidth=2;ctx.stroke();
@@ -1286,6 +1368,8 @@ function draw(){
       ctx.shadowBlur=0;
     }
   }
+
+  ctx.globalAlpha=1;
 
   // ---- EFFECTS ----
   for(const e of effects){
@@ -1422,6 +1506,12 @@ function draw(){
 
   ctx.restore();
 
+  // 은신 필터
+  if(P.dActive){
+    ctx.fillStyle='rgba(10,20,50,0.15)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
   // 커스텀 커서
   if(cursorImg.complete){
     ctx.drawImage(cursorImg,mouse.x-CURSOR_W/2,mouse.y-CURSOR_H/2,CURSOR_W,CURSOR_H);
@@ -1514,9 +1604,10 @@ document.addEventListener('keydown',e=>{
   else if(k==='w'){if(P.qCasting){P.qCasting=false;castW();}else tryOrBuffer(castW);}
   else if(k==='e')tryOrBuffer(castE);
   else if(k==='r')tryOrBuffer(castR);
+  else if(k==='d')castD();
   else if(k==='f')tryOrBuffer(castBlink);
   else if(k==='a'){aMode=true;}
-  else if(k==='s'){moveTarget=null;P.atkTarget=null;wPending=null;aMode=false;P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();}
+  else if(k==='s'){moveTarget=null;P.atkTarget=null;wPending=null;dPending=null;aMode=false;P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();}
   else if(k==='0'){document.getElementById('cd-reset-btn').click();}
   else if(k==='1'){document.getElementById('cdr-down').click();}
   else if(k==='2'){document.getElementById('cdr-up').click();}
@@ -1542,7 +1633,7 @@ document.getElementById('cd-reset-btn').addEventListener('click',()=>{
   btn.textContent=`쿨초기화 모드: ${cdResetMode?'ON':'OFF'}`;
   btn.style.borderColor=cdResetMode?'#f80':'#555';
   btn.style.color=cdResetMode?'#f80':'#ddd';
-  if(cdResetMode){P.qCd=0;P.wCd=0;P.eCd=0;P.rCd=0;P.atkCd=0;P.blinkCd=0;}
+  if(cdResetMode){P.qCd=0;P.wCd=0;P.eCd=0;P.rCd=0;P.atkCd=0;P.blinkCd=0;P.dCd=0;}
   log(`쿨초기화 모드 ${cdResetMode?'ON':'OFF'}`);
 });
 
