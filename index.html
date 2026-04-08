@@ -489,8 +489,9 @@ function castQ(){
   P.atkTarget=null;
   const wasEnhanced=P.qEnhanced;
   P.qCasting=true;P.qCastTimer=wasEnhanced?0.367:0.2; // Q: 선딜 0.2초, Q2: 선딜 0.2초 + 후딜 0.167초
+  P.qCd=applyCdr(CONF.qCd); // 즉시 쿨다운 설정
 
-  // 0.1초 선딜 후 판정
+  // 0.2초 선딜 후 판정
   const castX=P.x, castY=P.y;
   if(wasEnhanced) sfxQenh(); else sfxQ();
   setTimeout(()=>{
@@ -510,9 +511,8 @@ function castQ(){
       P.qEnhanced=false;P.qEnhTimer=0;
       document.getElementById('bQ').classList.remove('enhanced');
       document.getElementById('qIcon').src='icon/shoq.png';
-      if(anyHit){P.qCd=Math.max(0,applyCdr(CONF.qCd)-CONF.qCdReduce);log('강화Q 적중! 쿨다운 -3초')}
-      else P.qCd=applyCdr(CONF.qCd);
-      log('강화 Q 사용 → 단검 생성');
+      P.qCd=Math.max(0,P.qCd-CONF.qCdReduce);
+      log('강화 Q 사용 → 단검 생성, 쿨다운 -3초');
     } else {
       // Normal Q - rectangle
       let anyHit=false;
@@ -528,14 +528,13 @@ function castQ(){
       if(anyHit) sfxQdmg();
       addRectEffect(cx,cy,a,CONF.qRange,CONF.qWidth,'#cc3333');
       if(anyHit){
-        P.qCd=Math.max(0,applyCdr(CONF.qCd)-CONF.qCdReduce);
+        P.qCd=Math.max(0,P.qCd-CONF.qCdReduce);
         P.qEnhanced=true;
         P.qEnhTimer=CONF.qEnhDur;
         document.getElementById('bQ').classList.add('enhanced');
         document.getElementById('qIcon').src='icon/shoq2.png';
         log('Q 적중! 쿨다운 -3초, 강화Q 준비');
       } else {
-        P.qCd=applyCdr(CONF.qCd);
       }
     }
   }, 200); // 0.2초 선딜
