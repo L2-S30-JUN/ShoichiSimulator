@@ -486,7 +486,7 @@ function castQ(){
   moveTarget=null;
   P.atkTarget=null;
   const wasEnhanced=P.qEnhanced;
-  P.qCasting=true;P.qCastTimer=wasEnhanced?0.267:0.1; // Q: 선딜 0.1초, Q2: 선딜 0.1초 + 후딜 0.167초
+  P.qCasting=true;P.qCastTimer=wasEnhanced?0.367:0.2; // Q: 선딜 0.2초, Q2: 선딜 0.2초 + 후딜 0.167초
 
   // 0.1초 선딜 후 판정
   const castX=P.x, castY=P.y;
@@ -536,7 +536,7 @@ function castQ(){
         P.qCd=applyCdr(CONF.qCd);
       }
     }
-  }, 100); // 0.1초 선딜
+  }, 200); // 0.2초 선딜
 }
 
 // ============================================================
