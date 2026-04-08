@@ -354,6 +354,7 @@ function pickupDagger(idx){
 
 // Check if player walks near daggers
 function checkDaggerPickup(){
+  if(P.rCasting)return;
   for(let i=daggers.length-1;i>=0;i--){
     if(dist(P,daggers[i])<CONF.daggerPickupR+10){
       pickupDagger(i);
@@ -628,8 +629,8 @@ function executeWTeleport(){
   if(P.dashType==='enemy'){
     // 적 뒤로 순간이동
     const behind=ang({x:startX,y:startY},tgt);
-    P.x=tgt.x+Math.cos(behind)*30;
-    P.y=tgt.y+Math.sin(behind)*30;
+    P.x=tgt.x+Math.cos(behind)*50;
+    P.y=tgt.y+Math.sin(behind)*50;
     // 경로상 피해
     for(const dm of dummies){
       if(!dm.alive)continue;
@@ -714,10 +715,27 @@ function castE(){
     const eProj={
       x:P.x+Math.cos(a)*20, y:P.y+Math.sin(a)*20,
       vx:Math.cos(a)*27, vy:Math.sin(a)*27,
-      dmg:CONF.eDmg, r:20, life:12, fromPassive:false,
+      dmg:CONF.eDmg, r:35, life:12, fromPassive:false,
       isE:true, eAngle:a, hitList:new Set(), eHit:false,
     };
-    projectiles.push(eProj);
+    // 겹쳐있는 더미 즉시 적중
+    for(const d of dummies){
+      if(!d.alive)continue;
+      if(dist(P,d)<P.r+d.r){
+        hitDummy(d,CONF.eDmg,a,true);
+        eProj.hitList.add(d);
+        d.slow=CONF.eSlow;d.slowTimer=CONF.eSlowDur;
+        d.eMark=true;d.eMarkTimer=CONF.eMarkDur;
+        sfxEdaggerHit();
+        eProj.eHit=true;
+        log('협상 적중! 슬로우 + 마크 부여');
+        const behind=a;
+        const edgX=d.x+Math.cos(behind)*1.2*PX, edgY=d.y+Math.sin(behind)*1.2*PX;
+        effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000});
+        setTimeout(()=>{spawnDagger(edgX,edgY);log('협상 단검 생성 (적 뒤)');}, CONF.eDaggerDelay*1000);
+      }
+    }
+    if(!eProj.eHit) projectiles.push(eProj);
     P.eHopActive=true;
   },200);
 
