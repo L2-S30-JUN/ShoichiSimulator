@@ -13,6 +13,13 @@ body{background:#111;display:flex;flex-direction:column;align-items:center;heigh
 canvas{cursor:none;display:block}
 #custom-cursor{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;display:none;will-change:transform}
 #hud{position:fixed;bottom:16px;display:flex;gap:10px;z-index:10}
+#stack-indicator{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:24px;height:24px;display:none;align-items:center;justify-content:center;z-index:10;pointer-events:none;--p:100%}
+#stack-indicator.show{display:flex}
+#stack-indicator::before{content:"";position:absolute;inset:-3px;background:conic-gradient(#f80 var(--p),rgba(255,140,0,.12) 0)}
+#stack-indicator .icon{position:absolute;inset:0;background:url('icon/tfixed.png') center/cover no-repeat;border:1px solid #444;z-index:1}
+#stack-indicator .num{position:relative;font-size:12px;font-weight:bold;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000,1px 1px 0 #000;z-index:2}
+#stack-indicator.max::before{background:#f22;box-shadow:0 0 12px #f22,0 0 6px #f44}
+#stack-indicator.max .icon{border-color:#f44}
 .sk{width:54px;height:54px;border:2px solid #444;border-radius:6px;background:#1a1a2a;position:relative;display:flex;align-items:center;justify-content:center;user-select:none}
 .sk .key{position:absolute;top:2px;left:5px;font-size:10px;color:#888}
 .sk .icon{font-size:22px}
@@ -28,7 +35,17 @@ canvas{cursor:none;display:block}
 #passive-ui .full{color:#f80;font-weight:bold;font-size:12px;display:none;margin-top:4px}
 #log{position:fixed;bottom:90px;left:8px;font-size:11px;color:#888;background:rgba(0,0,0,.5);padding:6px 10px;border-radius:6px;max-height:120px;overflow:hidden;pointer-events:none;width:260px}
 #log div{margin-bottom:2px;opacity:.9}
-#credit{position:fixed;bottom:8px;right:8px;font-size:11px;color:#666;background:rgba(0,0,0,.4);padding:4px 8px;border-radius:4px;pointer-events:none}
+#credit{position:fixed;bottom:8px;right:8px;font-size:11px;color:#888;background:rgba(0,0,0,.4);padding:4px 8px;border-radius:4px;cursor:pointer;z-index:50}
+#credit:hover{color:#bbb}
+#credit-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:200}
+#credit-modal.show{display:flex}
+#credit-modal .box{background:#1a1a2a;border:1px solid #444;border-radius:8px;padding:20px;max-width:720px;max-height:85vh;overflow:auto;color:#ddd;font-size:13px;line-height:1.6;text-align:center}
+#credit-modal img{max-width:100%;max-height:50vh;border-radius:4px;border:1px solid #333;margin-bottom:14px;display:block}
+#credit-modal .msg{margin-bottom:16px;color:#ccc}
+#credit-modal .thanks-title{margin-top:14px;color:#5af;font-weight:bold}
+#credit-modal .thanks-list{color:#bbb;margin-top:6px}
+#credit-modal .close{margin-top:18px;padding:6px 18px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;cursor:pointer;font-size:12px}
+#credit-modal .close:hover{background:#333}
 #cdr-ui{position:fixed;top:80px;right:8px;background:rgba(0,0,0,.6);padding:10px 14px;border-radius:6px;font-size:13px;user-select:none}
 #cdr-ui .label{color:#aaa;margin-bottom:6px}
 #cdr-ui .row{display:flex;align-items:center;gap:8px}
@@ -72,6 +89,7 @@ canvas{cursor:none;display:block}
 </div>
 <div id="log"></div>
 <canvas id="c"></canvas>
+<div id="stack-indicator"><span class="icon"></span><span class="num" id="stack-num">0</span></div>
 <div id="hud">
   <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoqfix.png"><div class="cd" id="cQ"></div></div>
   <div class="sk ready" id="bW"><span class="key">W</span><img class="icon-img" src="icon/showfix.png"><div class="cd" id="cW"></div></div>
@@ -80,7 +98,16 @@ canvas{cursor:none;display:block}
   <div class="sk ready" id="bD" style="margin-left:12px;border-color:#888"><span class="key">D</span><img class="icon-img" src="icon/daggerskill.png" style="width:38px;height:38px"><div class="cd" id="cD"></div></div>
   <div class="sk ready" id="bF" style="border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/blinkfix.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
 </div>
-<div id="credit">본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
+<div id="credit">ⓘ 본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
+<div id="credit-modal">
+  <div class="box">
+    <img src="sprite/screenshot.png" alt="screenshot">
+    <div class="msg">본 사이트는 님블뉴런 IP에 위배되지 않는 선에서 제작되는 2차 창작 사이트입니다.<br>원작과 다른 점이 있다면 피드백해주세요!</div>
+    <div class="thanks-title">Thanks to..</div>
+    <div class="thanks-list">카미생, 정선우123, 지존똥, 칼챔충</div>
+    <button class="close" id="credit-close">닫기</button>
+  </div>
+</div>
 <img id="custom-cursor" src="icon/cursor.png" width="74" height="41" alt="">
 
 <script>
@@ -188,6 +215,7 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 const cursorImg=new Image();cursorImg.src='icon/cursor.png';
+const playerImg=new Image();playerImg.src='sprite/sprite111.png';
 const CURSOR_W=74;
 const CURSOR_H=Math.round(74*347/619);
 
@@ -429,6 +457,17 @@ function consumeStacks(){
 function updateStackUI(){
   for(let i=0;i<5;i++){
     document.getElementById('s'+i).className='dot'+(i<P.stacks?' on':'');
+  }
+  const si=document.getElementById('stack-indicator');
+  const sn=document.getElementById('stack-num');
+  if(P.stacks>0){
+    si.classList.add('show');
+    sn.textContent=P.stacks;
+    const pct=Math.max(0,Math.min(1,P.stackTimer/CONF.stackDur))*100;
+    si.style.setProperty('--p',pct+'%');
+    si.classList.toggle('max',P.stacks>=CONF.stackMax);
+  } else {
+    si.classList.remove('show','max');
   }
 }
 
@@ -1061,6 +1100,10 @@ function update(rdt){
     P.stackTimer-=tick;
     if(P.stackTimer<=0&&P.stacks>0){P.stacks=0;P.enhancedAA=false;updateStackUI();
       document.getElementById('stack-full').style.display='none';log('스택 시간 만료')}
+    else if(P.stacks>0&&P.stacks<CONF.stackMax){
+      const pct=Math.max(0,P.stackTimer/CONF.stackDur)*100;
+      document.getElementById('stack-indicator').style.setProperty('--p',pct+'%');
+    }
   }
   if(P.qEnhTimer>0){
     P.qEnhTimer-=tick;
@@ -1356,17 +1399,23 @@ function draw(){
     ctx.beginPath();ctx.moveTo(P.dashStart.x,P.dashStart.y);ctx.lineTo(px,py);ctx.stroke();
   }
 
-  // Body
+  // Body (sprite)
   ctx.globalAlpha=P.dActive?0.4:1;
-  ctx.fillStyle=P.dashing?'#8cf':P.enhancedAA?'#e90':'#3878b8';
-  ctx.beginPath();ctx.arc(px,py,P.r,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle=P.enhancedAA?'#f80':'#2558a0';ctx.lineWidth=2;ctx.stroke();
-
-  // Enhanced AA glow
-  if(P.enhancedAA){
-    ctx.shadowColor='#f80';ctx.shadowBlur=12;
-    ctx.beginPath();ctx.arc(px,py,P.r+2,0,Math.PI*2);ctx.stroke();
+  if(playerImg.complete&&playerImg.naturalWidth){
+    const sSize=P.r*2.2;
+    if(P.enhancedAA){
+      ctx.shadowColor='#f22';ctx.shadowBlur=14;
+    }
+    ctx.save();
+    ctx.translate(px,py);
+    if(!P.rCasting) ctx.rotate(P.angle-Math.PI/2); // R 시전 중엔 정면 유지
+    ctx.drawImage(playerImg,-sSize/2,-sSize/2,sSize,sSize);
+    ctx.restore();
     ctx.shadowBlur=0;
+  } else {
+    ctx.fillStyle=P.dashing?'#8cf':P.enhancedAA?'#e90':'#3878b8';
+    ctx.beginPath();ctx.arc(px,py,P.r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=P.enhancedAA?'#f80':'#2558a0';ctx.lineWidth=2;ctx.stroke();
   }
 
   // Dagger weapon + swing animation
@@ -1376,8 +1425,8 @@ function draw(){
     const prog=1-P.swingTimer/0.2; // 0→1
     swingAngle=P.swingDir*Math.PI*0.6*(prog<0.5?prog*2:(1-prog)*2); // 좌우 스윙
   }
-  const daggerA=da+swingAngle;
-  const dLen=18, dW=4;
+  const daggerA=da+swingAngle+Math.PI/4; // 45도 기울여서 오른쪽에 위치
+  const dLen=21, dW=5;
   const bx=px+Math.cos(daggerA)*(P.r+2), by=py+Math.sin(daggerA)*(P.r+2);
   const tx=px+Math.cos(daggerA)*(P.r+dLen), ty=py+Math.sin(daggerA)*(P.r+dLen);
   // 단검 날
@@ -1405,26 +1454,19 @@ function draw(){
     ctx.stroke();
   }
 
-  // Eyes
-  const e1x=px+Math.cos(da-.4)*5,e1y=py+Math.sin(da-.4)*5-1;
-  const e2x=px+Math.cos(da+.4)*5,e2y=py+Math.sin(da+.4)*5-1;
-  ctx.fillStyle='#fff';
-  ctx.beginPath();ctx.arc(e1x,e1y,2.5,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(e2x,e2y,2.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#112';
-  ctx.beginPath();ctx.arc(e1x+Math.cos(da),e1y+Math.sin(da),1.2,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(e2x+Math.cos(da),e2y+Math.sin(da),1.2,0,Math.PI*2);ctx.fill();
-
-  // Stack orbs around player
-  if(P.stacks>0){
-    for(let i=0;i<P.stacks;i++){
-      const sa=(Math.PI*2/CONF.stackMax)*i-Math.PI/2+performance.now()*.001;
-      const ox=px+Math.cos(sa)*(P.r+9),oy=py+Math.sin(sa)*(P.r+9);
-      ctx.fillStyle='#f80';ctx.shadowColor='#f80';ctx.shadowBlur=5;
-      ctx.beginPath();ctx.arc(ox,oy,2.5,0,Math.PI*2);ctx.fill();
-      ctx.shadowBlur=0;
-    }
+  // Eyes (sprite 없을 때만 fallback)
+  if(!(playerImg.complete&&playerImg.naturalWidth)){
+    const e1x=px+Math.cos(da-.4)*5,e1y=py+Math.sin(da-.4)*5-1;
+    const e2x=px+Math.cos(da+.4)*5,e2y=py+Math.sin(da+.4)*5-1;
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(e1x,e1y,2.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(e2x,e2y,2.5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#112';
+    ctx.beginPath();ctx.arc(e1x+Math.cos(da),e1y+Math.sin(da),1.2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(e2x+Math.cos(da),e2y+Math.sin(da),1.2,0,Math.PI*2);ctx.fill();
   }
+
+  // Stack orbs around player (deprecated — stack UI는 #stack-indicator로 대체)
 
   ctx.globalAlpha=1;
 
@@ -1702,6 +1744,11 @@ document.getElementById('shake-chk').addEventListener('change',e=>{
   shakeEnabled=e.target.checked;
   log(`화면 흔들림 ${shakeEnabled?'ON':'OFF'}`);
 });
+
+(()=>{const m=document.getElementById('credit-modal');
+document.getElementById('credit').addEventListener('click',()=>m.classList.add('show'));
+document.getElementById('credit-close').addEventListener('click',()=>m.classList.remove('show'));
+m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');});})();
 
 document.getElementById('cd-reset-btn').addEventListener('click',()=>{
   cdResetMode=!cdResetMode;
