@@ -2,9 +2,12 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="dark">
 <title>Shoichi Simulator Prototype</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <style>
+:root{color-scheme:dark;forced-color-adjust:none}
+img{forced-color-adjust:none}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#111;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI','맑은 고딕',sans-serif;color:#ddd}
 canvas{cursor:none;display:block}
@@ -63,6 +66,7 @@ body{cursor:none}
     <button id="as-up">+</button>
   </div>
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk" checked> 화면 흔들림</label></div>
   <div style="display:none" class="row">
     <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
   </div>
@@ -320,6 +324,7 @@ function tryOrBuffer(fn){if(isCasting()){skillBuffer=fn;skillBufferMouse={x:mous
 function flushBuffer(){if(skillBuffer){const fn=skillBuffer;const sm=skillBufferMouse;skillBuffer=null;skillBufferMouse=null;const ox=mouse.x,oy=mouse.y;mouse.x=sm.x;mouse.y=sm.y;fn();mouse.x=ox;mouse.y=oy;}}
 let aMode = false;       // A키 공격 모드 (사거리 표시 + 좌클릭 타겟팅)
 let shake = {x:0,y:0,t:0,m:0};
+let shakeEnabled = true;
 
 // ============================================================
 // DUMMY
@@ -1168,8 +1173,8 @@ function update(rdt){
   }
 
   // Shake
-  if(shake.t>0){shake.t--;shake.x=(Math.random()-.5)*shake.m*2;shake.y=(Math.random()-.5)*shake.m*2}
-  else{shake.x=0;shake.y=0}
+  if(shakeEnabled&&shake.t>0){shake.t--;shake.x=(Math.random()-.5)*shake.m*2;shake.y=(Math.random()-.5)*shake.m*2}
+  else{shake.t=0;shake.x=0;shake.y=0}
 
   // Clamp
   P.x=clamp(P.x,P.r,canvas.width-P.r);
@@ -1668,6 +1673,10 @@ document.getElementById('as-down').addEventListener('click',()=>{
 document.getElementById('bisaek-chk').addEventListener('change',e=>{
   bisaekActive=e.target.checked;
   recalcAs();updateAsUI();log(`비색단검 ${bisaekActive?'ON':'OFF'} → 공속 ${atkSpeedMult.toFixed(2)}`);
+});
+document.getElementById('shake-chk').addEventListener('change',e=>{
+  shakeEnabled=e.target.checked;
+  log(`화면 흔들림 ${shakeEnabled?'ON':'OFF'}`);
 });
 
 document.getElementById('cd-reset-btn').addEventListener('click',()=>{
