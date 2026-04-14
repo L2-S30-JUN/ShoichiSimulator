@@ -8,6 +8,8 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#111;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI','맑은 고딕',sans-serif;color:#ddd}
 canvas{cursor:none;display:block}
+body{cursor:none}
+#custom-cursor{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;display:none;will-change:transform}
 #hud{position:fixed;bottom:16px;display:flex;gap:10px;z-index:10}
 .sk{width:54px;height:54px;border:2px solid #444;border-radius:6px;background:#1a1a2a;position:relative;display:flex;align-items:center;justify-content:center;user-select:none}
 .sk .key{position:absolute;top:2px;left:5px;font-size:10px;color:#888}
@@ -38,7 +40,7 @@ canvas{cursor:none;display:block}
 <div id="info">
   <b>우클릭</b> 이동 / 더미 우클릭 → 평타 &nbsp;<b>좌클릭</b> 평타<br>
   <b>Q</b> 표리 &nbsp;<b>W</b> 비약(적/단검 대상) &nbsp;<b>E</b> 협상 &nbsp;<b>R</b> 무자비 &nbsp;<b>D</b> 은신 &nbsp;<b>F</b> 블링크<br>
-  <b>0</b> 쿨초기화 &nbsp;<b>1</b> 쿨감- &nbsp;<b>2</b> 쿨감+ &nbsp;<b>3</b> 더미 생성 &nbsp;<b>4</b> 더미 삭제
+  <b>`</b> 쿨초기화 &nbsp;<b>1</b> 쿨감- &nbsp;<b>2</b> 쿨감+ &nbsp;<b>3</b> 더미 생성 &nbsp;<b>4</b> 더미 삭제
 </div>
 <div id="passive-ui">
   부당거래
@@ -54,12 +56,16 @@ canvas{cursor:none;display:block}
   </div>
   <div class="rate" id="cdr-rate">감소율: 0%</div>
   <div style="margin-top:8px"><button id="cd-reset-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">쿨초기화 모드: OFF</button></div>
-  <div style="margin-top:6px" class="row">
-    <button id="fps-down" style="width:28px;height:24px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:14px;cursor:pointer">-</button>
-    <span class="val" id="fps-val" style="font-size:14px;min-width:50px;text-align:center">무제한</span>
-    <button id="fps-up" style="width:28px;height:24px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:14px;cursor:pointer">+</button>
+  <div style="margin-top:10px" class="label">공격속도</div>
+  <div class="row">
+    <button id="as-down">-</button>
+    <span class="val" id="as-val">1.08</span>
+    <button id="as-up">+</button>
   </div>
-  <div style="font-size:11px;color:#888;text-align:center;margin-top:2px">FPS 제한</div>
+  <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
+  <div style="display:none" class="row">
+    <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
+  </div>
 </div>
 <div id="log"></div>
 <canvas id="c"></canvas>
@@ -72,6 +78,7 @@ canvas{cursor:none;display:block}
   <div class="sk ready" id="bF" style="border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/blinkfix.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
 </div>
 <div id="credit">본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
+<img id="custom-cursor" src="icon/cursor.png" width="74" height="41" alt="">
 
 <script>
 // ============================================================
@@ -92,6 +99,12 @@ const CDR_TABLE = {
 };
 let cdrStat = 0;   // 쿨감 스탯 (0~130, 5단위)
 let cdResetMode = false; // 쿨타임 초기화 모드
+let baseAsMult = 1.08;    // 기본 공격속도 (0.72 ~ 1.08)
+let bisaekActive = false; // 비색단검 활성화 (+0.21)
+let atkSpeedMult = 1.08;  // 최종 공격속도 (baseAsMult + 비색 보너스)
+function recalcAs(){
+  atkSpeedMult = Math.round((baseAsMult + (bisaekActive?0.21:0))*100)/100;
+}
 function getCdrRate(){ return (CDR_TABLE[cdrStat]||0) / 100; }
 function applyCdr(baseCd){ return cdResetMode ? 0 : baseCd * (1 - getCdrRate()); }
 
@@ -265,11 +278,13 @@ const P = {
   // W
   wCd: 0,
   // E
-  eCd: 0,
+  eCd: 0, eInternalCd: 0,
   // R
-  rCd: 0, rCasting: false, rCastTimer: 0,
+  rCd: 0, rInternalCd: 0, rCasting: false, rCastTimer: 0,
   // basic atk
   atkCd: 0, atkTarget: null,
+  // W 착지 자동평타 전용 타겟 (평타명령과 분리)
+  wAutoTarget: null,
   // W후 자동평타 윈드업
   atkWindup: false, atkWindupTimer: 0, atkWindupTarget: null,
   // 단검 휘두르기 모션
@@ -412,7 +427,7 @@ function executeAttack(tgt){
 
   P.angle=ang(P,tgt);
   moveTarget=null;
-  P.atkCd=CONF.atkCd;
+  P.atkCd=CONF.atkCd/atkSpeedMult;
   P.swinging=true;P.swingTimer=0.2;P.swingDir*=-1;
   sfxAtk();
 
@@ -432,7 +447,7 @@ function resolveAttack(){
   if(!tgt||!tgt.alive)return;
   if(wasEnhanced){
     consumeStacks();
-    hitDummy(tgt, CONF.enhancedAtkDmg + 40, atkAngle, true);
+    hitDummy(tgt, CONF.enhancedAtkDmg + 40, atkAngle, false);
     sfxAtkHit();
     const behind=atkAngle;
     const dgX=tgt.x+Math.cos(behind)*1.2*PX, dgY=tgt.y+Math.sin(behind)*1.2*PX;
@@ -454,17 +469,19 @@ function cancelAttack(){
 
 // 우클릭 타겟 자동 접근 + 범위 진입 시 평타 (매 프레임 호출)
 function processAutoAttack(){
-  if(!P.atkTarget||!P.atkTarget.alive||P.dashing||P.rCasting||P.hopping||P.qCasting||P.eCasting)return;
+  // 평타명령(atkTarget) 우선, 없으면 W 착지 자동평타 타겟(wAutoTarget) 사용
+  const tgt=(P.atkTarget&&P.atkTarget.alive)?P.atkTarget:((P.wAutoTarget&&P.wAutoTarget.alive)?P.wAutoTarget:null);
+  if(!tgt||P.dashing||P.rCasting||P.hopping||P.qCasting||P.eCasting)return;
   // W후 자동평타 윈드업 중이면 processAutoAttack 무시 (윈드업 타이머가 처리)
   if(P.atkWindup)return;
   // moveTarget이 있으면 이동 우선 (우클릭 이동 중)
   if(moveTarget)return;
-  const d=dist(P,P.atkTarget);
-  if(d<=CONF.atkRange+P.atkTarget.r){
-    executeAttack(P.atkTarget);
+  const d=dist(P,tgt);
+  if(d<=CONF.atkRange+tgt.r){
+    executeAttack(tgt);
   } else {
     // 범위 밖 → 대상 쪽으로 걸어감
-    const a=ang(P,P.atkTarget);
+    const a=ang(P,tgt);
     const nx=P.x+Math.cos(a)*CONF.moveSpeed*(1+(P.dActive?CONF.dSpeedBonus:0))*tick;
     const ny=P.y+Math.sin(a)*CONF.moveSpeed*(1+(P.dActive?CONF.dSpeedBonus:0))*tick;
     if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny;P.angle=a}
@@ -498,7 +515,7 @@ function castQ(){
   const a=ang(P,mouse);
   P.angle=a;
   moveTarget=null;
-  P.atkTarget=null;
+  P.atkTarget=null;P.wAutoTarget=null;
   const wasEnhanced=P.qEnhanced;
   P.qCasting=true;P.qCastTimer=wasEnhanced?0.367:0.2; // Q: 선딜 0.2초, Q2: 선딜 0.2초 + 후딜 0.167초
   P.qCd=0.3; // 임시 쿨다운 (연타 방지, 판정 시 실제 쿨다운으로 덮어씀)
@@ -601,7 +618,7 @@ function castW(){
 
 function executeW(target,type){
   sfxW();
-  P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
+  P.atkWindup=false;P.atkWindupTarget=null;P.wAutoTarget=null;cancelAttack();
   P.dashing=true;
   P.dashTarget=target;
   P.dashType=type;
@@ -689,15 +706,23 @@ function executeWTeleport(){
   P.dashing=false;
   // 버퍼된 스킬 실행
   if(skillBuffer){flushBuffer();}
-  // W 순간이동 후 사거리 내 적 자동평타
-  else {
-    let etgt=null, ed=Infinity;
+  // 자동평타 처리:
+  // - 착지 지점이 평타 사거리 안에 적이 있으면 자동평타 (이전 명령 무관)
+  // - 범위 밖이면 평타 명령(atkTarget)이 유지된 경우만 추격, E/Q/S로 끊기면 아무 것도 안 함
+  if(!P.eCasting&&!P.qCasting&&!P.rCasting&&!P.dashing&&!P.hopping&&!P.atkWindup){
+    let inRange=null, bd=Infinity;
     for(const d of dummies){
       if(!d.alive)continue;
       const dd=dist(P,d);
-      if(dd<=CONF.atkRange+d.r && dd<ed){ed=dd;etgt=d;}
+      if(dd<=CONF.atkRange+d.r&&dd<bd){bd=dd;inRange=d;}
     }
-    if(etgt){P.atkWindup=true;P.atkWindupTimer=0.167;P.atkWindupTarget=etgt;P.atkTarget=etgt;moveTarget=null;sfxAtk();}
+    if(inRange){
+      // W 착지 자동평타: 평타명령(atkTarget)과 별개로 wAutoTarget에 저장해 계속 평타를 치게 함
+      P.wAutoTarget=inRange;
+      P.atkWindup=true;P.atkWindupTimer=Math.max(0,0.27/atkSpeedMult-0.2);
+      P.atkWindupTarget=inRange;moveTarget=null;sfxAtk();
+    }
+    // 범위 밖인 경우: atkTarget이 유지됐다면 processAutoAttack이 추격, null이면 정지
   }
 }
 
@@ -705,7 +730,8 @@ function executeWTeleport(){
 // E - 협상
 // ============================================================
 function castE(){
-  if(P.eCd>0||P.locked||P.dashing||P.rCasting||P.hopping||P.eCasting)return;
+  if(P.eCd>0||P.eInternalCd>0||P.locked||P.dashing||P.rCasting||P.hopping||P.eCasting)return;
+  P.eInternalCd=0.4; // eCastTimer와 동일
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
   const a=ang(P,mouse);
   P.angle=a;
@@ -718,7 +744,7 @@ function castE(){
   P.eHopA=a;
   P.eHopActive=false;
   moveTarget=null;
-  P.atkTarget=null;
+  P.atkTarget=null;P.wAutoTarget=null;
   setTimeout(()=>{P.eCanCancel=true;},200); // 0.2초 후 스킬 사용 가능 (선입력 대기)
   setTimeout(()=>{flushBuffer();},300); // 0.3초 후 선입력 실행
 
@@ -761,7 +787,8 @@ function castE(){
 // R - 무자비 (선딜 0.3초 → X자 단검 투척 → 후딜 0.6초)
 // ============================================================
 function castR(){
-  if(P.rCd>0||P.locked||P.dashing||P.rCasting||P.hopping)return;
+  if(P.rCd>0||P.rInternalCd>0||P.locked||P.dashing||P.rCasting||P.hopping)return;
+  P.rInternalCd=CONF.rCastTime;
   if(P.eCasting&&!P.eCanCancel)return; // E 선딜 0.2초 중 스킬 불가
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
   P.rCasting=true;
@@ -911,7 +938,7 @@ function executeD(tgt){
   P.dCd=CONF.dCd;
   playSfx('daggerskill2');
   // D2 이후 자동평타
-  if(tgt.alive){P.atkWindup=true;P.atkWindupTimer=0.167;P.atkWindupTarget=tgt;P.atkTarget=tgt;sfxAtk();}
+  if(tgt.alive){P.atkWindup=true;P.atkWindupTimer=0.167/atkSpeedMult;P.atkWindupTarget=tgt;P.atkTarget=tgt;sfxAtk();}
   log('은신 순간이동!');
 }
 function checkDPending(){
@@ -979,6 +1006,8 @@ function update(rdt){
   if(P.wCd>0)P.wCd-=tick;
   if(P.eCd>0)P.eCd-=tick;
   if(P.rCd>0)P.rCd-=tick;
+  if(P.eInternalCd>0)P.eInternalCd-=tick;
+  if(P.rInternalCd>0)P.rInternalCd-=tick;
   if(P.blinkCd>0)P.blinkCd-=tick;
   if(P.dCd>0)P.dCd-=tick;
   if(P.dTimer>0){P.dTimer-=tick;if(P.dTimer<=0){P.dActive=false;playSfx('cloakend');log('은신 해제');}}
@@ -1149,8 +1178,8 @@ function update(rdt){
   // UI
   updateSkillUI('cQ','bQ',P.qCd,CONF.qCd);
   updateSkillUI('cW','bW',P.wCd,CONF.wCd);
-  updateSkillUI('cE','bE',P.eCd,CONF.eCd);
-  updateSkillUI('cR','bR',P.rCd,CONF.rCd);
+  updateSkillUI('cE','bE',Math.max(P.eCd,P.eInternalCd),CONF.eCd);
+  updateSkillUI('cR','bR',Math.max(P.rCd,P.rInternalCd),CONF.rCd);
   updateSkillUI('cD','bD',P.dCd,CONF.dCd);
   updateSkillUI('cF','bF',P.blinkCd,CONF.blinkCd);
 }
@@ -1512,10 +1541,6 @@ function draw(){
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  // 커스텀 커서
-  if(cursorImg.complete){
-    ctx.drawImage(cursorImg,mouse.x-CURSOR_W/2,mouse.y-CURSOR_H/2,CURSOR_W,CURSOR_H);
-  }
 }
 
 // ============================================================
@@ -1539,12 +1564,15 @@ function loop(now){
 // ============================================================
 let rightDown=false;
 
-canvas.addEventListener('mousemove',e=>{
+const cursorEl=document.getElementById('custom-cursor');
+document.addEventListener('mousemove',e=>{
+  cursorEl.style.display='block';
+  cursorEl.style.transform=`translate(${e.clientX-CURSOR_W/2}px,${e.clientY-CURSOR_H/2}px)`;
   const r=canvas.getBoundingClientRect();
   mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;
-  // 우클릭 홀드 중이면 마우스 따라 이동
   if(rightDown) handleRightClick(mouse.x,mouse.y);
 });
+document.addEventListener('mouseleave',()=>cursorEl.style.display='none');
 
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
@@ -1562,10 +1590,11 @@ function handleRightClick(mx,my){
   }
   if(clickedDummy){
     P.atkTarget=clickedDummy;
+    P.wAutoTarget=null;
     moveTarget=null;
     wPending=null;
   } else {
-    P.atkTarget=null;
+    P.atkTarget=null;P.wAutoTarget=null;
     moveTarget={x:mx,y:my};
     wPending=null;
   }
@@ -1607,8 +1636,8 @@ document.addEventListener('keydown',e=>{
   else if(k==='d')castD();
   else if(k==='f')tryOrBuffer(castBlink);
   else if(k==='a'){aMode=true;}
-  else if(k==='s'){moveTarget=null;P.atkTarget=null;wPending=null;dPending=null;aMode=false;P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();}
-  else if(k==='0'){document.getElementById('cd-reset-btn').click();}
+  else if(k==='s'){moveTarget=null;P.atkTarget=null;P.wAutoTarget=null;wPending=null;dPending=null;aMode=false;P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();}
+  else if(k==='`'){document.getElementById('cd-reset-btn').click();}
   else if(k==='1'){document.getElementById('cdr-down').click();}
   else if(k==='2'){document.getElementById('cdr-up').click();}
   else if(k==='3')spawnDummy(mouse.x,mouse.y);
@@ -1625,6 +1654,20 @@ document.getElementById('cdr-up').addEventListener('click',()=>{
 });
 document.getElementById('cdr-down').addEventListener('click',()=>{
   if(cdrStat>0){cdrStat-=5;updateCdrUI();log(`쿨감 ${cdrStat} (${CDR_TABLE[cdrStat]}%)`)}
+});
+
+function updateAsUI(){document.getElementById('as-val').textContent=atkSpeedMult.toFixed(2);}
+document.getElementById('as-up').addEventListener('click',()=>{
+  baseAsMult=Math.min(1.08, Math.round((baseAsMult+0.02)*100)/100);
+  recalcAs();updateAsUI();log(`공격속도 ${atkSpeedMult.toFixed(2)}`);
+});
+document.getElementById('as-down').addEventListener('click',()=>{
+  baseAsMult=Math.max(0.72, Math.round((baseAsMult-0.02)*100)/100);
+  recalcAs();updateAsUI();log(`공격속도 ${atkSpeedMult.toFixed(2)}`);
+});
+document.getElementById('bisaek-chk').addEventListener('change',e=>{
+  bisaekActive=e.target.checked;
+  recalcAs();updateAsUI();log(`비색단검 ${bisaekActive?'ON':'OFF'} → 공속 ${atkSpeedMult.toFixed(2)}`);
 });
 
 document.getElementById('cd-reset-btn').addEventListener('click',()=>{
