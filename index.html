@@ -140,7 +140,7 @@ function applyCdr(baseCd){ return cdResetMode ? 0 : baseCd * (1 - getCdrRate());
 
 const CONF = {
   moveSpeed: 3.76 * PX,            // per second (프레임 독립)
-  atkRange: 1.0 * PX,
+  atkRange: 1.65 * PX,
   atkCd: 1.0,                    // seconds (공속 하향)
 
   // Passive
@@ -865,6 +865,7 @@ function castR(){
 
     // R 범위 내(178px) 데미지 + 스택 1회
     const rHitSet=new Set();
+    const rHitAll=new Set();
     for(const d of dummies){
       if(!d.alive)continue;
       if(dist({x:castX,y:castY},d)<178+d.r){
@@ -872,6 +873,7 @@ function castR(){
         d.slow=CONF.rSlow;d.slowTimer=CONF.rSlowDur;
         rAnyHit=true;
         rHitSet.add(d);
+        rHitAll.add(d);
       }
     }
     effects.push({type:'raoe',x:castX,y:castY,r:178,t:0,mt:25});
@@ -896,6 +898,7 @@ function castR(){
           if(lineHitsCircle(castX,castY,ex,ey,d.x,d.y,d.r+CONF.rDaggerPathW/2)){
             hitDummy(d,CONF.rDaggerDmg,dir.a,false);
             rAnyHit=true;
+            rHitAll.add(d);
           }
         }
 
@@ -921,6 +924,16 @@ function castR(){
     // 후딜 0.6초 후 시전 종료
     setTimeout(()=>{
       P.rCasting=false;
+      // R 적중 시 자동평타 (W 착지 자동평타와 동일 방식, 평타명령과 별개)
+      if(rAnyHit){
+        let near=null, bd=Infinity;
+        for(const d of rHitAll){
+          if(!d.alive)continue;
+          const dd=dist(P,d);
+          if(dd<=CONF.atkRange+d.r&&dd<bd){bd=dd;near=d;}
+        }
+        if(near) P.wAutoTarget=near;
+      }
       log('무자비 시전 완료');
       flushBuffer();
     }, postDelay);
