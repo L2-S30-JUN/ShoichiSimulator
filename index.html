@@ -197,11 +197,23 @@ const CURSOR_H=Math.round(74*347/619);
 // ============================================================
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 function beep(f,d,t='square',v=.1){const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
-// WAV 효과음 (프리로드)
+// WAV 효과음 (WebAudio AudioBuffer로 디코드 — 지연 없음)
 const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger','daggerskill','daggerskill2','cloakend'];
-const sfxCache={};
-sfxNames.forEach(name=>{const a=new Audio(`sfx/${name}.wav`);a.load();sfxCache[name]=a;});
-function playSfx(name,vol=0.5){const a=new Audio(`sfx/${name}.wav`);a.volume=vol;a.play().catch(()=>{});}
+const sfxBuf={};
+sfxNames.forEach(name=>{
+  fetch(`sfx/${name}.wav`).then(r=>r.arrayBuffer()).then(b=>AC.decodeAudioData(b)).then(buf=>{sfxBuf[name]=buf;}).catch(()=>{});
+});
+// 첫 사용자 입력 시 AudioContext 재개 (자동재생 정책)
+const _resumeAC=()=>{if(AC.state==='suspended')AC.resume();};
+window.addEventListener('pointerdown',_resumeAC,{once:false});
+window.addEventListener('keydown',_resumeAC,{once:false});
+function playSfx(name,vol=0.5){
+  const buf=sfxBuf[name];if(!buf)return;
+  const src=AC.createBufferSource();src.buffer=buf;
+  const g=AC.createGain();g.gain.value=vol;
+  src.connect(g);g.connect(AC.destination);
+  src.start(0);
+}
 function sfxAtk(){playSfx('attack')}
 function sfxAtkHit(){playSfx('attackhit')}
 function sfxEnhAtk(){playSfx('attack')}
