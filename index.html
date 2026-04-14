@@ -909,6 +909,7 @@ function castBlink(){
   sfxBlink();
   cancelAttack();
   P.atkWindup=false;P.atkWindupTarget=null;
+  P.atkTarget=null;P.wAutoTarget=null;
   const a=ang(P,mouse);
   const d=Math.min(dist(P,mouse),CONF.blinkRange);
   const ox=P.x,oy=P.y;
@@ -951,7 +952,7 @@ function executeD(tgt){
   P.dTimer=0;
   P.dRecastTimer=0;
   P.dPhase=0;
-  P.dCd=CONF.dCd;
+  P.dCd=cdResetMode?0:CONF.dCd;
   playSfx('daggerskill2');
   // D2 이후 자동평타
   if(tgt.alive){P.atkWindup=true;P.atkWindupTimer=0.167/atkSpeedMult;P.atkWindupTarget=tgt;P.atkTarget=tgt;sfxAtk();}
@@ -1027,7 +1028,7 @@ function update(rdt){
   if(P.blinkCd>0)P.blinkCd-=tick;
   if(P.dCd>0)P.dCd-=tick;
   if(P.dTimer>0){P.dTimer-=tick;if(P.dTimer<=0){P.dActive=false;playSfx('cloakend');log('은신 해제');}}
-  if(P.dRecastTimer>0){P.dRecastTimer-=tick;if(P.dRecastTimer<=0&&P.dPhase===1){P.dPhase=0;P.dCd=CONF.dCd;log('은신 재사용 시간 만료');}}
+  if(P.dRecastTimer>0){P.dRecastTimer-=tick;if(P.dRecastTimer<=0&&P.dPhase===1){P.dPhase=0;P.dCd=cdResetMode?0:CONF.dCd;log('은신 재사용 시간 만료');}}
   if(P.lockTimer>0){P.lockTimer-=tick;if(P.lockTimer<=0){P.locked=false;flushBuffer();}}
   if(P.swinging){P.swingTimer-=tick;if(P.swingTimer<=0)P.swinging=false;}
   // 평타 적중 대기 (0.2초 후 적중, 이동 시 취소)
