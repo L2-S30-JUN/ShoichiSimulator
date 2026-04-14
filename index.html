@@ -11,7 +11,6 @@ img{forced-color-adjust:none}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#111;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI','맑은 고딕',sans-serif;color:#ddd}
 canvas{cursor:none;display:block}
-body{cursor:none}
 #custom-cursor{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;display:none;will-change:transform}
 #hud{position:fixed;bottom:16px;display:flex;gap:10px;z-index:10}
 .sk{width:54px;height:54px;border:2px solid #444;border-radius:6px;background:#1a1a2a;position:relative;display:flex;align-items:center;justify-content:center;user-select:none}
@@ -1583,7 +1582,8 @@ let rightDown=false;
 
 const cursorEl=document.getElementById('custom-cursor');
 document.addEventListener('mousemove',e=>{
-  cursorEl.style.display='block';
+  const onCanvas=e.target===canvas;
+  cursorEl.style.display=onCanvas?'block':'none';
   cursorEl.style.transform=`translate(${e.clientX-CURSOR_W/2}px,${e.clientY-CURSOR_H/2}px)`;
   const r=canvas.getBoundingClientRect();
   mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;
