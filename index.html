@@ -10,7 +10,7 @@
 img{forced-color-adjust:none}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#111;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;font-family:'Segoe UI','맑은 고딕',sans-serif;color:#ddd}
-canvas{cursor:none;display:block}
+canvas{cursor:none;display:block;transform-origin:center center;will-change:transform;backface-visibility:hidden}
 #custom-cursor{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;display:none;will-change:transform}
 #hud{position:fixed;bottom:16px;display:flex;gap:10px;z-index:10}
 #stack-indicator{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:24px;height:24px;display:none;align-items:center;justify-content:center;z-index:10;pointer-events:none;--p:100%}
@@ -29,7 +29,7 @@ canvas{cursor:none;display:block}
 .sk.enhanced{border-color:#f80;box-shadow:0 0 10px rgba(255,140,0,.5)}
 #info{position:fixed;top:8px;left:8px;font-size:12px;line-height:1.7;color:#999;background:rgba(0,0,0,.6);padding:8px 12px;border-radius:6px}
 #info b{color:#5af}
-#passive-ui{position:fixed;top:8px;right:8px;background:rgba(0,0,0,.6);padding:8px 14px;border-radius:6px;font-size:14px}
+#passive-ui{position:fixed;top:8px;right:8px;background:rgba(0,0,0,.6);padding:8px 14px;border-radius:6px;font-size:14px;z-index:20}
 #passive-ui .dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #666;margin:0 2px;vertical-align:middle}
 #passive-ui .dot.on{background:#f80;border-color:#fa0;box-shadow:0 0 4px #f80}
 #passive-ui .full{color:#f80;font-weight:bold;font-size:12px;display:none;margin-top:4px}
@@ -46,7 +46,7 @@ canvas{cursor:none;display:block}
 #credit-modal .thanks-list{color:#bbb;margin-top:6px}
 #credit-modal .close{margin-top:18px;padding:6px 18px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;cursor:pointer;font-size:12px}
 #credit-modal .close:hover{background:#333}
-#cdr-ui{position:fixed;top:80px;right:8px;background:rgba(0,0,0,.6);padding:10px 14px;border-radius:6px;font-size:13px;user-select:none}
+#cdr-ui{position:fixed;top:80px;right:8px;background:rgba(0,0,0,.6);padding:10px 14px;border-radius:6px;font-size:13px;user-select:none;z-index:20}
 #cdr-ui .label{color:#aaa;margin-bottom:6px}
 #cdr-ui .row{display:flex;align-items:center;gap:8px}
 #cdr-ui button{width:28px;height:28px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -83,12 +83,15 @@ canvas{cursor:none;display:block}
   </div>
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk" checked> 화면 흔들림</label></div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="quarter-chk" checked> 쿼터뷰</label></div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="overlay-chk"> 원작 오버레이</label> <input type="range" id="overlay-a" min="0" max="1" step="0.05" value="0.4" style="width:60px;vertical-align:middle"></div>
   <div style="display:none" class="row">
     <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
   </div>
 </div>
 <div id="log"></div>
-<canvas id="c"></canvas>
+<div id="canvas-wrap" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;z-index:1;"><canvas id="c"></canvas></div>
+<img id="ref-overlay" src="sprite/screenshot1.jpg" style="position:fixed;left:50%;top:0;transform:translateX(-50%);max-width:100vw;max-height:calc(100vh - 20px);pointer-events:none;z-index:30;opacity:.4;display:none">
 <div id="stack-indicator"><span class="icon"></span><span class="num" id="stack-num">0</span></div>
 <div id="hud">
   <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoqfix.png"><div class="cd" id="cQ"></div></div>
@@ -120,6 +123,34 @@ const dt = 1 / FPS;
 let tick = dt;
 
 // ============================================================
+// SCHEDULER (게임 루프 기반 타이머 — setTimeout 대체)
+// ============================================================
+const scheduledActions = [];
+let _nextActionId = 1;
+function schedule(delaySec, fn, tag=null){
+  const a = {id:_nextActionId++, time:delaySec, fn, tag, cancelled:false};
+  scheduledActions.push(a);
+  return a.id;
+}
+function cancelScheduled(id){
+  for(const a of scheduledActions) if(a.id===id) a.cancelled=true;
+}
+function cancelScheduledByTag(tag){
+  for(const a of scheduledActions) if(a.tag===tag) a.cancelled=true;
+}
+function tickScheduler(t){
+  for(let i=scheduledActions.length-1;i>=0;i--){
+    const a=scheduledActions[i];
+    if(a.cancelled){scheduledActions.splice(i,1);continue;}
+    a.time-=t;
+    if(a.time<=0){
+      scheduledActions.splice(i,1);
+      try{a.fn();}catch(e){console.error('scheduled action error',e);}
+    }
+  }
+}
+
+// ============================================================
 // 쿨타임 감소 시스템
 // ============================================================
 const CDR_TABLE = {
@@ -139,14 +170,14 @@ function getCdrRate(){ return (CDR_TABLE[cdrStat]||0) / 100; }
 function applyCdr(baseCd){ return cdResetMode ? 0 : baseCd * (1 - getCdrRate()); }
 
 const CONF = {
-  moveSpeed: 3.76 * PX,            // per second (프레임 독립)
+  moveSpeed: 3.948 * PX,            // per second (프레임 독립, 기본 3.76 × 105%)
   atkRange: 1.65 * PX,
   atkCd: 1.0,                    // seconds (공속 하향)
 
   // Passive
   stackMax: 5,
   stackDur: 5,                   // seconds
-  passiveThrowRange: 5.94 * PX,
+  passiveThrowRange: 5 * PX,
   passiveThrowDmg: 50,
   enhancedAtkDmg: 30,
 
@@ -161,7 +192,7 @@ const CONF = {
   qEnhHalfAngle: Math.PI/4.8,        // 부채꼴 반각 37.5° (총 75°)
 
   // W
-  wRange: 5.5 * PX,              // 5.5m
+  wRange: 5 * PX,                // 5m
   wDmg: 100,
   wWidth: 2.5 * PX,
   wCd: 12,
@@ -208,12 +239,47 @@ const CONF = {
 // ============================================================
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
+let quarterView = true;
+const cam = { roll: -8, scaleY: 1.01, scaleX: 0.92, tiltX: 44.5, tiltY: 0.5, persp: 700, zoom: 2 };
+function applyCamera(){
+  if(quarterView){
+    canvas.style.transform=`scale(${cam.zoom}) perspective(${cam.persp}px) rotateX(${cam.tiltX}deg) rotateY(${cam.tiltY}deg) rotate(${cam.roll}deg) scale(${cam.scaleX},${cam.scaleY})`;
+  } else {
+    canvas.style.transform=`scale(${cam.zoom*0.95})`;
+  }
+}
+applyCamera();
+// 내부 버퍼 해상도는 고정 → 렌더링 비용과 비율이 해상도 독립적으로 일관됨
+const DESIGN_W = 2400;
+const DESIGN_H_Q = 1600;  // 쿼터뷰
+const DESIGN_H_F = 1350;  // 평면
+function fitCanvas() {
+  const vw = window.innerWidth, vh = window.innerHeight - 20;
+  const s = Math.min(vw / canvas.width, vh / canvas.height);
+  canvas.style.width = (canvas.width * s) + 'px';
+  canvas.style.height = (canvas.height * s) + 'px';
+}
+// 그리드 오프스크린 캐시 (매 프레임 100+ stroke 호출 회피)
+const gridCanvas = document.createElement('canvas');
+const gridCtx = gridCanvas.getContext('2d');
+function renderGrid() {
+  gridCanvas.width = canvas.width;
+  gridCanvas.height = canvas.height;
+  gridCtx.strokeStyle = '#1a1a2a';
+  gridCtx.lineWidth = 1;
+  gridCtx.beginPath();
+  for (let x = 0; x < canvas.width; x += 40) { gridCtx.moveTo(x, 0); gridCtx.lineTo(x, canvas.height); }
+  for (let y = 0; y < canvas.height; y += 40) { gridCtx.moveTo(0, y); gridCtx.lineTo(canvas.width, y); }
+  gridCtx.stroke();
+}
 function resize() {
-  canvas.width = Math.min(window.innerWidth, 1920);
-  canvas.height = Math.min(window.innerHeight - 20, 1080);
+  canvas.width = DESIGN_W;
+  canvas.height = quarterView ? DESIGN_H_Q : DESIGN_H_F;
+  fitCanvas();
+  renderGrid();
 }
 resize();
-window.addEventListener('resize', resize);
+window.addEventListener('resize', () => { fitCanvas(); });
 const cursorImg=new Image();cursorImg.src='icon/cursor.png';
 const playerImg=new Image();playerImg.src='sprite/sprite111.png';
 const CURSOR_W=74;
@@ -312,14 +378,14 @@ let moveTarget = null;
 
 // Player
 const P = {
-  x: 300, y: 400, r: 0.45 * PX, angle: 0,
+  x: canvas.width/2, y: canvas.height/2 + 130, r: 0.45 * PX, angle: 0,
   // stacks
   stacks: 0, stackTimer: 0,
   enhancedAA: false,
   // Q
   qCd: 0, qEnhanced: false, qEnhTimer: 0,
   // W
-  wCd: 0,
+  wCd: 0, wInternalCd: 0,
   // E
   eCd: 0, eInternalCd: 0,
   // R
@@ -343,7 +409,7 @@ const P = {
   // Q casting (시전 중 이동 불가)
   qCasting: false, qCastTimer: 0,
   // E casting (1초 시전, 0.3초 후 스킬 캔슬 가능)
-  eCasting: false, eCastTimer: 0, eCanCancel: false,
+  eCasting: false, eCastTimer: 0, eCanCancel: false, eHopActive: false, eHopTimer: 0, eHopA: 0,
   _eCastId: 0,
   // Blink
   blinkCd: 0,
@@ -358,9 +424,11 @@ const effects = [];
 const walls = [];
 let skillBuffer = null;  // 선입력 버퍼 (시전시간 중 마지막 입력 1개 저장)
 let skillBufferMouse = null; // 선입력 시점의 마우스 좌표
+const CD_BUFFER_THRESHOLD = 0.1; // 쿨다운 ≤ 이 값일 때 선입력 허용
 function isCasting(){return P.dashing||P.rCasting||P.qCasting||(P.eCasting&&!P.eCanCancel);}
 function tryOrBuffer(fn){if(isCasting()){skillBuffer=fn;skillBufferMouse={x:mouse.x,y:mouse.y};}else{fn();}}
 function flushBuffer(){if(skillBuffer){const fn=skillBuffer;const sm=skillBufferMouse;skillBuffer=null;skillBufferMouse=null;const ox=mouse.x,oy=mouse.y;mouse.x=sm.x;mouse.y=sm.y;fn();mouse.x=ox;mouse.y=oy;}}
+function bufferShortCd(fn, cd){ if(cd>0 && cd<=CD_BUFFER_THRESHOLD){ skillBuffer=fn; skillBufferMouse={x:mouse.x,y:mouse.y}; } }
 let aMode = false;       // A키 공격 모드 (사거리 표시 + 좌클릭 타겟팅)
 let shake = {x:0,y:0,t:0,m:0};
 let shakeEnabled = true;
@@ -374,7 +442,7 @@ function spawnDummy(x,y){
     eMark:false,eMarkTimer:0,
   });
 }
-spawnDummy(550,350);
+spawnDummy(canvas.width/2, canvas.height/2 - 130);
 
 // ============================================================
 // DAGGER SYSTEM
@@ -391,11 +459,11 @@ function spawnDagger(x,y){
 function pickupDagger(idx){
   daggers.splice(idx,1);
   sfxPickup();
-  // 단검 회수 → W 쿨다운 무조건 초기화
-  if(P.wCd>0){
-    P.wCd=0;
-    log('단검 회수 → W 쿨다운 초기화!');
-  }
+  // 단검 회수 → W 쿨다운 0.05초로 설정 (쿨초기화 모드에서도 동일 적용)
+  // 내부쿨다운도 함께 클리어 (W로 적을 친 뒤 경로 단검 회수 시 0.3초 내부쿨이 남아있던 버그 수정)
+  P.wCd=0.05;
+  P.wInternalCd=0;
+  log('단검 회수 → W 쿨다운 0.05초!');
   // auto-throw at nearest enemy within 5m
   let best=null, bestD=Infinity;
   for(const d of dummies){
@@ -507,10 +575,10 @@ function resolveAttack(){
     const behind=atkAngle;
     const dgX=tgt.x+Math.cos(behind)*1.2*PX, dgY=tgt.y+Math.sin(behind)*1.2*PX;
     effects.push({type:'dagdrop',x:dgX,y:dgY,sx:tgt.x,sy:tgt.y,t:0,mt:9999,spawnTime:performance.now()+667}); // 단검 생성 시 제거
-    setTimeout(()=>{
+    schedule(0.667,()=>{
       spawnDagger(dgX,dgY);
       log('강화 평타 단검 생성 (적 뒤)');
-    }, 667);
+    });
     log('⚡ 강화 공격!');
   } else {
     hitDummy(tgt, 40, atkAngle, false);
@@ -564,7 +632,13 @@ function doBasicAttack(){
 // Q - 표리
 // ============================================================
 function castQ(){
-  if(P.qCd>0||P.dashing||P.rCasting||P.hopping||P.qCasting)return;
+  if(P.qCd>0){ bufferShortCd(castQ, P.qCd); return; }
+  if(P.dashing||P.rCasting||P.hopping)return;
+  if(P.qCasting){
+    if(!cdResetMode)return;
+    // 쿨초기화 모드: 진행 중인 Q 캐스트 취소 후 재시전
+    cancelScheduledByTag('Q');P.qCasting=false;P.qCastTimer=0;
+  }
   if(P.eCasting&&!P.eCanCancel)return; // E 선딜 0.2초 중 스킬 불가
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
   const a=ang(P,mouse);
@@ -572,13 +646,13 @@ function castQ(){
   moveTarget=null;
   P.atkTarget=null;P.wAutoTarget=null;
   const wasEnhanced=P.qEnhanced;
-  P.qCasting=true;P.qCastTimer=wasEnhanced?0.367:0.2; // Q: 선딜 0.2초, Q2: 선딜 0.2초 + 후딜 0.167초
+  P.qCasting=true;P.qCastTimer=wasEnhanced?23/60:0.2; // Q: 선딜 0.2초, Q2: 23프레임(60fps 기준)
   P.qCd=0.3; // 임시 쿨다운 (연타 방지, 판정 시 실제 쿨다운으로 덮어씀)
 
   // 0.2초 선딜 후 판정
   const castX=P.x, castY=P.y;
   if(wasEnhanced) sfxQenh(); else sfxQ();
-  setTimeout(()=>{
+  schedule(0.2,()=>{
     if(wasEnhanced){
       // Enhanced Q - fan shape
       let anyHit=false;
@@ -622,7 +696,7 @@ function castQ(){
         P.qCd=applyCdr(CONF.qCd);
       }
     }
-  }, 200); // 0.2초 선딜
+  },'Q'); // 0.2초 선딜
 }
 
 // ============================================================
@@ -632,7 +706,10 @@ function castQ(){
 let wPending=null; // {target, type}
 
 function castW(){
-  if(P.wCd>0||P.rCasting)return;
+  if(P.wCd>0){ return; }
+  if(cdResetMode && P.wInternalCd>0){ skillBuffer=castW; skillBufferMouse={x:mouse.x,y:mouse.y}; return; }
+  if(P.locked||P.dashing||P.hopping)return;
+  if(P.rCasting)return;
   if(P.eCasting&&!P.eCanCancel)return; // E 선딜 0.2초 중 스킬 불가
 
   // Find target near mouse: enemy or dagger
@@ -659,8 +736,11 @@ function castW(){
 
   const dp=dist(P,bestTarget);
   if(dp<=CONF.wRange){
-    // 범위 안 → E 후퇴 캔슬 후 즉시 시전
-    if(P.eCasting){P.eCasting=false;P.eCanCancel=false;P.eHopActive=false}
+    // 범위 안 → E 진행 중이면 E 캔슬 후 즉시 W (느린 EW: E 20프레임 마크 이후 W 입력)
+    if(P.eCasting){
+      cancelScheduledByTag('E');
+      P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eCastTimer=0;P.eHopTimer=0;
+    }
     executeW(bestTarget,bestType);
   } else {
     // 범위 밖 → E는 유지 (E 후딜이 끝나야 접근 시작), 대기열에만 등록
@@ -680,6 +760,7 @@ function executeW(target,type){
   moveTarget=null;
   wPending=null;
   P.wCd=applyCdr(CONF.wCd);
+  if(cdResetMode && type==='enemy') P.wInternalCd=0.3;
   // 즉시 순간이동
   executeWTeleport();
   log(`비약 → ${type==='enemy'?'적':'단검'} 대상`);
@@ -772,8 +853,9 @@ function executeWTeleport(){
       const dd=dist(P,d);
       if(dd<=CONF.atkRange+d.r&&dd<bd){bd=dd;inRange=d;}
     }
-    if(inRange){
+    if(inRange && !skillBuffer){
       // W 착지 자동평타: 평타명령(atkTarget)과 별개로 wAutoTarget에 저장해 계속 평타를 치게 함
+      // 버퍼된 다음 스킬이 대기 중이면 자동평타 스킵 (어차피 곧 캔슬될 것)
       P.wAutoTarget=inRange;
       P.atkWindup=true;P.atkWindupTimer=Math.max(0,0.27/atkSpeedMult-0.2);
       P.atkWindupTarget=inRange;moveTarget=null;sfxAtk();
@@ -786,27 +868,46 @@ function executeWTeleport(){
 // E - 협상
 // ============================================================
 function castE(){
-  if(P.eCd>0||P.eInternalCd>0||P.locked||P.dashing||P.rCasting||P.hopping||P.eCasting)return;
-  P.eInternalCd=0.4; // eCastTimer와 동일
+  if(P.eCd>0){ bufferShortCd(castE, P.eCd); return; }
+  if(P.eInternalCd>0||P.locked||P.dashing||P.rCasting||P.hopping)return;
+  if(P.eCasting){
+    if(!cdResetMode)return;
+    cancelScheduledByTag('E');P.eCasting=false;P.eCastTimer=0;P.eCanCancel=false;P.eHopActive=false;
+  }
+  // 타이밍: 넉백 0.3s 후 시작, 10프레임(=10/60s) 동안 후퇴
+  const E_HOP_DELAY = 0.25;
+  const E_HOP_DUR = 10/60;
+  const E_TOTAL = E_HOP_DELAY + E_HOP_DUR; // ≈ 0.467s
+  const EW_FAST_DELAY = 21/60; // 빠른 EW: E 누른 시점 기준 21프레임 뒤 W 실행
+  P.eInternalCd=E_TOTAL;
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
   const a=ang(P,mouse);
   P.angle=a;
   sfxE();
 
-  // E 시전: 0.1초 선딜 후 단검 발사, 0.5초 후퇴 (총 0.6초, 0.3초 후 캔슬 가능)
   P.eCasting=true;
-  P.eCastTimer=0.4;
+  P.eCastTimer=E_TOTAL;
+  P.eHopTimer=0;
   P.eCanCancel=false;
   P.eHopA=a;
   P.eHopActive=false;
   moveTarget=null;
   P.atkTarget=null;P.wAutoTarget=null;
-  setTimeout(()=>{P.eCanCancel=true;},200); // 0.2초 후 스킬 사용 가능 (선입력 대기)
-  setTimeout(()=>{flushBuffer();},300); // 0.3초 후 선입력 실행
+  schedule(E_HOP_DELAY,()=>{P.eCanCancel=true;},'E'); // 넉백 시작 시점에 캔슬 가능
+  // 빠른 EW: E 누른 시점 기준 20프레임 뒤, 버퍼된 W가 있으면 E 캔슬 후 즉시 실행
+  schedule(EW_FAST_DELAY,()=>{
+    if(skillBuffer===castW){
+      cancelScheduledByTag('E');
+      P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eCastTimer=0;P.eHopTimer=0;
+      flushBuffer();
+    }
+  },'E');
+  // E 종료 시점에 나머지 버퍼 처리
+  schedule(E_TOTAL,()=>{flushBuffer();},'E');
 
-  // 0.2초(시전시간) 후 단검 발사 + 후퇴 시작
+  // 0.3초 후 단검 발사 + 후퇴 시작
   const eCastX=P.x, eCastY=P.y;
-  setTimeout(()=>{
+  schedule(E_HOP_DELAY,()=>{
     const eProj={
       x:eCastX+Math.cos(a)*20, y:eCastY+Math.sin(a)*20,
       vx:Math.cos(a)*27, vy:Math.sin(a)*27,
@@ -828,12 +929,12 @@ function castE(){
         const behind=a;
         const edgX=d.x+Math.cos(behind)*1.2*PX, edgY=d.y+Math.sin(behind)*1.2*PX;
         effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000});
-        setTimeout(()=>{spawnDagger(edgX,edgY);log('협상 단검 생성 (적 뒤)');}, CONF.eDaggerDelay*1000);
+        schedule(CONF.eDaggerDelay,()=>{spawnDagger(edgX,edgY);log('협상 단검 생성 (적 뒤)');});
       }
     }
     if(!eProj.eHit) projectiles.push(eProj);
-    if(P.eCasting) P.eHopActive=true;
-  },200);
+    if(P.eCasting){P.eHopActive=true;P.eHopTimer=E_HOP_DUR;}
+  },'E');
 
   P.eCd=applyCdr(CONF.eCd);
   log('협상 시전');
@@ -843,7 +944,12 @@ function castE(){
 // R - 무자비 (선딜 0.3초 → X자 단검 투척 → 후딜 0.6초)
 // ============================================================
 function castR(){
-  if(P.rCd>0||P.rInternalCd>0||P.locked||P.dashing||P.rCasting||P.hopping)return;
+  if(P.rCd>0){ bufferShortCd(castR, P.rCd); return; }
+  if(P.rInternalCd>0||P.locked||P.dashing||P.hopping)return;
+  if(P.rCasting){
+    if(!cdResetMode)return;
+    cancelScheduledByTag('R');P.rCasting=false;P.rCastTimer=0;
+  }
   P.rInternalCd=CONF.rCastTime;
   if(P.eCasting&&!P.eCanCancel)return; // E 선딜 0.2초 중 스킬 불가
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
@@ -853,13 +959,13 @@ function castR(){
   sfxR();
   P.rCd=applyCdr(CONF.rCd);
 
-  const preDelay=200;   // 선딜 0.2초
-  const postDelay=600;  // 후딜 0.6초
+  const preDelay=0.2;   // 선딜 0.2초
+  const postDelay=0.6;  // 후딜 0.6초
 
   log('무자비 시전...');
 
   // 선딜 0.2초 후 → 내부 AoE + X자 단검 순차 투척
-  setTimeout(()=>{
+  schedule(preDelay,()=>{
     const castX=P.x, castY=P.y;
     let rAnyHit=false;
 
@@ -888,7 +994,7 @@ function castR(){
     ];
 
     xDirs.forEach((dir,i)=>{
-      setTimeout(()=>{
+      schedule(i*0.1,()=>{
         const dx=Math.cos(dir.a), dy=Math.sin(dir.a);
 
         // 경로상 피해 (이미 맞은 대상 제외)
@@ -916,13 +1022,13 @@ function castR(){
           t:0,mt:20,w:CONF.rDaggerPathW});
 
         // 마지막 단검 배치 후 R hit/miss 사운드
-      }, i*100); // 0.1초 간격으로 순서대로 배치
+      },'R');
     });
 
     log('단검 투척 완료! (후딜 0.6초)');
 
     // 후딜 0.6초 후 시전 종료
-    setTimeout(()=>{
+    schedule(postDelay,()=>{
       P.rCasting=false;
       // R 적중 시 자동평타 (W 착지 자동평타와 동일 방식, 평타명령과 별개)
       if(rAnyHit){
@@ -936,8 +1042,8 @@ function castR(){
       }
       log('무자비 시전 완료');
       flushBuffer();
-    }, postDelay);
-  }, preDelay);
+    },'R');
+  },'R');
 }
 
 // ============================================================
@@ -958,7 +1064,8 @@ function hitDummy(d, dmg, dir, grantStack){
 // BLINK (점멸)
 // ============================================================
 function castBlink(){
-  if(P.blinkCd>0||isCasting())return;
+  if(P.blinkCd>0){ bufferShortCd(castBlink, P.blinkCd); return; }
+  if(isCasting())return;
   sfxBlink();
   cancelAttack();
   P.atkWindup=false;P.atkWindupTarget=null;
@@ -1080,16 +1187,20 @@ function addFanEffect(x,y,a,r,ha,col){
 // ============================================================
 function update(rdt){
   tick=rdt||dt; // 실제 경과 시간 사용
+  tickScheduler(tick);
   // Timers
   if(P.atkCd>0)P.atkCd-=tick;
   if(P.qCd>0)P.qCd-=tick;
   if(P.wCd>0)P.wCd-=tick;
   if(P.eCd>0)P.eCd-=tick;
   if(P.rCd>0)P.rCd-=tick;
+  if(P.wInternalCd>0)P.wInternalCd-=tick;
   if(P.eInternalCd>0)P.eInternalCd-=tick;
   if(P.rInternalCd>0)P.rInternalCd-=tick;
   if(P.blinkCd>0)P.blinkCd-=tick;
   if(P.dCd>0)P.dCd-=tick;
+  // 쿨다운 만료 시 선입력 버퍼 자동 플러시 (버퍼된 fn이 자체적으로 CD 재검사)
+  if(skillBuffer && !isCasting() && !P.atkWindup && !P.atkPending) flushBuffer();
   if(P.dTimer>0){P.dTimer-=tick;if(P.dTimer<=0){P.dActive=false;playSfx('cloakend');log('은신 해제');}}
   if(P.dRecastTimer>0){P.dRecastTimer-=tick;if(P.dRecastTimer<=0&&P.dPhase===1){P.dPhase=0;P.dCd=cdResetMode?0:CONF.dCd;log('은신 재사용 시간 만료');}}
   if(P.lockTimer>0){P.lockTimer-=tick;if(P.lockTimer<=0){P.locked=false;flushBuffer();}}
@@ -1130,15 +1241,18 @@ function update(rdt){
     if(P.qCastTimer<=0){P.qCasting=false;flushBuffer();}
   }
 
-  // E casting (0.1초 선딜 + 0.5초 후퇴)
+  // E casting: 0.3s 선딜 → 10프레임 후퇴
   if(P.eCasting){
     P.eCastTimer-=tick;
-    // 단검 발사 후에만 뒤로 물러남
     if(P.eHopActive){
-      const hopSpeed=7.5*PX*tick;
-      const nx=P.x-Math.cos(P.eHopA)*hopSpeed;
-      const ny=P.y-Math.sin(P.eHopA)*hopSpeed;
-      if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny}
+      P.eHopTimer-=tick;
+      if(P.eHopTimer<=0){P.eHopActive=false;}
+      else{
+        const hopSpeed=7.5*PX*tick;
+        const nx=P.x-Math.cos(P.eHopA)*hopSpeed;
+        const ny=P.y-Math.sin(P.eHopA)*hopSpeed;
+        if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny}
+      }
     }
     if(P.eCastTimer<=0){P.eCasting=false;P.eCanCancel=false;P.eHopActive=false}
   }
@@ -1210,10 +1324,10 @@ function update(rdt){
           const behind=Math.atan2(p.vy,p.vx);
           const edgX=d.x+Math.cos(behind)*1.2*PX, edgY=d.y+Math.sin(behind)*1.2*PX;
           effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000}); // 단검 생성 시 제거
-          setTimeout(()=>{
+          schedule(CONF.eDaggerDelay,()=>{
             spawnDagger(edgX,edgY);
             log('협상 단검 생성 (적 뒤)');
-          }, CONF.eDaggerDelay*1000);
+          });
           p.life=0;
           break;
         }
@@ -1261,7 +1375,7 @@ function update(rdt){
 
   // UI
   updateSkillUI('cQ','bQ',P.qCd,CONF.qCd);
-  updateSkillUI('cW','bW',P.wCd,CONF.wCd);
+  updateSkillUI('cW','bW',Math.max(P.wCd,P.wInternalCd),CONF.wCd);
   updateSkillUI('cE','bE',Math.max(P.eCd,P.eInternalCd),CONF.eCd);
   updateSkillUI('cR','bR',Math.max(P.rCd,P.rInternalCd),CONF.rCd);
   updateSkillUI('cD','bD',P.dCd,CONF.dCd);
@@ -1289,10 +1403,8 @@ function draw(){
   ctx.translate(shake.x,shake.y);
   ctx.clearRect(-10,-10,canvas.width+20,canvas.height+20);
 
-  // Grid
-  ctx.strokeStyle='#1a1a2a';ctx.lineWidth=1;
-  for(let x=0;x<canvas.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}
-  for(let y=0;y<canvas.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}
+  // Grid (오프스크린 캐시)
+  ctx.drawImage(gridCanvas, 0, 0);
 
 
   // Move target
@@ -1632,7 +1744,7 @@ function draw(){
 let lastTime=performance.now();
 const fpsOptions=[0,30,60,120,144]; // 0=무제한
 let fpsLimitIdx=0;
-let fpsInterval=0; // 0=무제한
+let fpsInterval=0; // 0=무제한 (rAF 동기)
 function loop(now){
   requestAnimationFrame(loop);
   if(fpsInterval>0&&(now-lastTime)<fpsInterval)return;
@@ -1652,8 +1764,33 @@ document.addEventListener('mousemove',e=>{
   const onCanvas=e.target===canvas;
   cursorEl.style.display=onCanvas?'block':'none';
   cursorEl.style.transform=`translate(${e.clientX-CURSOR_W/2}px,${e.clientY-CURSOR_H/2}px)`;
-  const r=canvas.getBoundingClientRect();
-  mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;
+  // 변형 전 레이아웃 중심을 래퍼에서 구함 (transform은 canvas에만 적용)
+  const wrap=document.getElementById('canvas-wrap');
+  const r=wrap.getBoundingClientRect();
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let xs=e.clientX-cx, ys=e.clientY-cy;
+  // 외부 줌 역적용 (transform 가장 바깥 scale(zoom))
+  xs /= cam.zoom; ys /= cam.zoom;
+  if(quarterView){
+    // 순서: perspective * rotateX(tx) * rotateY(ty) * rotate(roll) * scale(sx,sy)
+    const tx=cam.tiltX*Math.PI/180, ty=cam.tiltY*Math.PI/180;
+    const rr=cam.roll*Math.PI/180;
+    const d=cam.persp;
+    const cty=Math.cos(ty)||1e-6, ctx_=Math.cos(tx)||1e-6;
+    // 원근 역산: Z = d*(k-1)/k, xs=X*k, ys=Y*k, z=0 제약 → k
+    const A = ys*Math.tan(tx) - xs*Math.tan(ty)/ctx_;
+    const k = 1 + A/d;
+    const u = xs/(k*cty);
+    const v = (ys/k - u*Math.sin(ty)*Math.sin(tx))/ctx_;
+    // R_roll^-1 * (u,v) 그리고 scale 역
+    const ux = u*Math.cos(rr) + v*Math.sin(rr);
+    const vy = -u*Math.sin(rr) + v*Math.cos(rr);
+    xs = ux/cam.scaleX; ys = vy/cam.scaleY;
+  }
+  // CSS 픽셀 → 캔버스 버퍼 픽셀 변환 (해상도 독립)
+  const sx = canvas.width / r.width, sy = canvas.height / r.height;
+  xs *= sx; ys *= sy;
+  mouse.x=xs+canvas.width/2;mouse.y=ys+canvas.height/2;
   if(rightDown) handleRightClick(mouse.x,mouse.y);
 });
 document.addEventListener('mouseleave',()=>cursorEl.style.display='none');
@@ -1712,9 +1849,14 @@ canvas.addEventListener('mouseup',e=>{
 });
 
 document.addEventListener('keydown',e=>{
+  if(e.repeat)return; // 키 홀드 시 자동 반복 입력 무시
   const k=e.key.toLowerCase();
   if(k==='q')tryOrBuffer(castQ);
-  else if(k==='w'){if(P.qCasting){P.qCasting=false;castW();}else tryOrBuffer(castW);}
+  else if(k==='w'){
+    if(P.qCasting){skillBuffer=castW;skillBufferMouse={x:mouse.x,y:mouse.y};} // Q 시전 중 W: 버퍼만 (Q 캔슬 불가)
+    else if(P.eCasting){skillBuffer=castW;skillBufferMouse={x:mouse.x,y:mouse.y};} // E 도중 W: 항상 버퍼 (빠른 EW는 castE의 20프레임 스케줄, 느린 EW는 즉시 캔슬 경로)
+    else tryOrBuffer(castW);
+  }
   else if(k==='e')tryOrBuffer(castE);
   else if(k==='r')tryOrBuffer(castR);
   else if(k==='d')castD();
@@ -1757,6 +1899,15 @@ document.getElementById('shake-chk').addEventListener('change',e=>{
   shakeEnabled=e.target.checked;
   log(`화면 흔들림 ${shakeEnabled?'ON':'OFF'}`);
 });
+document.getElementById('quarter-chk').addEventListener('change',e=>{
+  quarterView=e.target.checked;
+  applyCamera();
+  resize();
+  log(`쿼터뷰 ${quarterView?'ON':'OFF'}`);
+});
+const refOv=document.getElementById('ref-overlay');
+document.getElementById('overlay-chk').addEventListener('change',e=>{refOv.style.display=e.target.checked?'block':'none';});
+document.getElementById('overlay-a').addEventListener('input',e=>{refOv.style.opacity=e.target.value;});
 
 (()=>{const m=document.getElementById('credit-modal');
 document.getElementById('credit').addEventListener('click',()=>m.classList.add('show'));
