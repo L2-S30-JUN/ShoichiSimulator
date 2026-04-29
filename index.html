@@ -84,14 +84,12 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk" checked> 화면 흔들림</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="quarter-chk" checked> 쿼터뷰</label></div>
-  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="overlay-chk"> 원작 오버레이</label> <input type="range" id="overlay-a" min="0" max="1" step="0.05" value="0.4" style="width:60px;vertical-align:middle"></div>
   <div style="display:none" class="row">
     <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
   </div>
 </div>
 <div id="log"></div>
 <div id="canvas-wrap" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;z-index:1;"><canvas id="c"></canvas></div>
-<img id="ref-overlay" src="sprite/screenshot1.jpg" style="position:fixed;left:50%;top:0;transform:translateX(-50%);max-width:100vw;max-height:calc(100vh - 20px);pointer-events:none;z-index:30;opacity:.4;display:none">
 <div id="stack-indicator"><span class="icon"></span><span class="num" id="stack-num">0</span></div>
 <div id="hud">
   <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoqfix.png"><div class="cd" id="cQ"></div></div>
@@ -1905,9 +1903,6 @@ document.getElementById('quarter-chk').addEventListener('change',e=>{
   resize();
   log(`쿼터뷰 ${quarterView?'ON':'OFF'}`);
 });
-const refOv=document.getElementById('ref-overlay');
-document.getElementById('overlay-chk').addEventListener('change',e=>{refOv.style.display=e.target.checked?'block':'none';});
-document.getElementById('overlay-a').addEventListener('input',e=>{refOv.style.opacity=e.target.value;});
 
 (()=>{const m=document.getElementById('credit-modal');
 document.getElementById('credit').addEventListener('click',()=>m.classList.add('show'));
