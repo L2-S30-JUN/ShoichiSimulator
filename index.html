@@ -983,13 +983,15 @@ function applyWPathDamage(startX,startY,endX,endY,knockA){
     let t=0;
     if(len2>0.0001){ t=((dm.x-startX)*dx+(dm.y-startY)*dy)/len2; t=Math.max(0,Math.min(1,t)); }
     const delay=t*CONF.wPostDelay;
+    // 패시브 스택은 적중 인원수와 무관하게 W 1회당 1개만 부여 → 여기선 grantStack=false, 아래에서 한 번만 addStack.
     if(delay<=0.0001){
-      hitDummy(dm,CONF.wDmg,knockA,true);
+      hitDummy(dm,CONF.wDmg,knockA,false);
     } else {
       const target=dm;
-      schedule(delay,()=>{ if(target.alive) hitDummy(target,CONF.wDmg,knockA,true); });
+      schedule(delay,()=>{ if(target.alive) hitDummy(target,CONF.wDmg,knockA,false); });
     }
   }
+  if(any) addStack(); // 여러 명을 맞혀도 스택은 1개만
   return any;
 }
 
