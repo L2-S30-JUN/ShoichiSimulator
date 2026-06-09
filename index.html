@@ -224,7 +224,7 @@ const CONF = {
   wDmg: 100,
   wWidth: 2.5 * PX,
   wCd: 12,
-  wPostDelay: 0.15,             // W 시전 후딜(초). 이 동안 다른 스킬은 즉시 사용 가능(W만 버퍼→후딜 후 선입력), 이동/평타는 잠금 + 비약 궤적이 그려지며 데미지가 시작→착지 순으로 시간차 적중
+  wPostDelay: 0.15,             // W 시전 후딜(초). 이 동안 다른 스킬·자동평타는 즉시 사용 가능(W만 버퍼→후딜 후 선입력), 이동/좌클릭 평타는 잠금 + 비약 궤적이 그려지며 데미지가 시작→착지 순으로 시간차 적중
   wSpeed: 18 * PX * dt,
 
   // E
@@ -470,7 +470,7 @@ const P = {
   locked: false, lockTimer: 0,
   // dash (W)
   dashing: false, dashTarget: null, dashType: null, dashStart: null,
-  // W 후딜(0.15초): 이 동안 다른 스킬은 즉시 사용 가능(W만 선입력 버퍼), 이동/평타는 잠금. 종료 시 버퍼된 W(2번째 포함) 발동 또는 착지 자동평타
+  // W 후딜(0.15초): 이 동안 다른 스킬·자동평타는 즉시 사용 가능(W만 선입력 버퍼), 이동/좌클릭 평타는 잠금. 착지 자동평타는 순간이동 직후 즉시 시작, 종료 시 버퍼된 W(2번째 포함) 발동
   wPostDelay: 0,
   // E hop
   hopping: false, hopVx: 0, hopVy: 0, hopTimer: 0,
@@ -548,12 +548,13 @@ function spawnDagger(x,y){
   sfxDaggerDrop();
 }
 
-function pickupDagger(idx){
+function pickupDagger(idx, viaW){
   daggers.splice(idx,1);
   sfxPickup();
-  // 단검 회수 → W 쿨다운 0.05초로 설정 (쿨초기화 모드에서도 동일 적용)
+  // 단검 회수 → W로 회수(viaW)하면 W 쿨다운 0.05초, 걸어가서 회수하면 0초(쿨 완전 초기화).
+  //   → W 쿨다운 중 걸어가서 주우면 쿨이 0이 되어 즉시 다시 W 가능.
   // 내부쿨다운도 함께 클리어 (W로 적을 친 뒤 경로 단검 회수 시 0.3초 내부쿨이 남아있던 버그 수정)
-  P.wCd=0.05;
+  P.wCd = viaW ? 0.05 : 0;
   P.wInternalCd=0;
   // auto-throw at nearest enemy within 5m
   let best=null, bestD=Infinity;
@@ -684,7 +685,8 @@ function cancelAttack(){
 function processAutoAttack(){
   // 평타명령(atkTarget) 우선, 없으면 W 착지 자동평타 타겟(wAutoTarget) 사용
   const tgt=(P.atkTarget&&P.atkTarget.alive)?P.atkTarget:((P.wAutoTarget&&P.wAutoTarget.alive)?P.wAutoTarget:null);
-  if(!tgt||P.dashing||P.rCasting||P.hopping||P.qCasting||P.eCasting||P.wPostDelay>0)return;
+  // 자동평타는 W 후딜의 영향을 받지 않는다 (P.wPostDelay 제외).
+  if(!tgt||P.dashing||P.rCasting||P.hopping||P.qCasting||P.eCasting)return;
   // W후 자동평타 윈드업 중이면 processAutoAttack 무시 (윈드업 타이머가 처리)
   if(P.atkWindup)return;
   // moveTarget이 있으면 이동 우선 (우클릭 이동 중)
@@ -916,7 +918,7 @@ function executeWTeleport(){
     wHitAny=applyWPathDamage(startX,startY,P.x,P.y,ba);
     // 대상 단검 줍기
     const idx=daggers.findIndex(dg=>Math.hypot(dg.x-tgt.x,dg.y-tgt.y)<CONF.daggerPickupR);
-    if(idx>=0) pickupDagger(idx);
+    if(idx>=0) pickupDagger(idx, true);
   }
 
   // 경로 상 다른 단검도 줍기 (W 쿨 초기화) - 가로 넓게, 세로 정직하게
@@ -938,7 +940,7 @@ function executeWTeleport(){
       // 시작점(캐릭터)보다 도약 방향 뒤쪽에 중심이 있는 단검만 제외 (시작점에서 평평하게 컷, 옆쪽은 그대로)
       if((daggers[i].x-startX)*dirx+(daggers[i].y-startY)*diry < 0) continue;
       if(circleHitsRect(daggers[i].x,daggers[i].y,wPathCx,wPathCy,wPathA,hwS,hhS,blueR)){
-        pickupDagger(i);
+        pickupDagger(i, true);
       }
     }
     // 시각화: 실효 회수 영역 = 시작점 ~ 착지+앞여유, 폭은 기존 그대로 (뒤쪽만 시작점에서 평평하게 컷)
@@ -960,9 +962,11 @@ function executeWTeleport(){
   // Trail effect
   effects.push({type:'wtrail',x1:startX,y1:startY,x2:P.x,y2:P.y,t:0,mt:15});
   P.dashing=false;
-  // 0.15초 후딜 시작 — 이 동안 모든 행동 불가. 후딜 종료 시 onWPostDelayEnd()가
-  // 버퍼된 다음 스킬(2번째 W 포함) 발동 또는 착지 자동평타를 처리한다.
+  // 0.15초 후딜 시작 — 이동/평타(좌클릭)는 잠기지만 다른 스킬은 즉시 사용 가능, W만 후딜 후 선입력 발동.
   P.wPostDelay=CONF.wPostDelay;
+  // 착지 자동평타는 후딜의 영향을 받지 않고 즉시 시작한다. (선입력된 다음 스킬이 없을 때만)
+  //  후딜 중 W를 선입력하면 keydown에서 이 자동평타를 취소하고 W를 큐에 쌓는다.
+  if(!skillBuffer && !wBuffer2) setupWLandingAutoAttack();
 }
 
 // W 경로 데미지: 경로(시작→착지)에 걸친 모든 적을 적중하되,
@@ -989,29 +993,30 @@ function applyWPathDamage(startX,startY,endX,endY,knockA){
   return any;
 }
 
-// W 후딜 종료 시: 버퍼된 다음 스킬(2번째 W 포함)이 있으면 발동, 없으면 착지 자동평타 판정.
+// W 착지 자동평타 셋업: 착지 지점이 평타 사거리 안에 적이 있으면 자동평타 시작.
+//  후딜의 영향을 받지 않도록 executeWTeleport에서 순간이동 직후 즉시 호출한다.
+function setupWLandingAutoAttack(){
+  if(P.eCasting||P.qCasting||P.rCasting||P.dashing||P.hopping||P.atkWindup) return;
+  let inRange=null, bd=Infinity;
+  for(const d of dummies){
+    if(!d.alive)continue;
+    const dd=dist(P,d);
+    if(dd<=CONF.atkRange+d.r&&dd<bd){bd=dd;inRange=d;}
+  }
+  if(inRange){
+    // 평타명령(atkTarget)과 별개로 wAutoTarget에 저장해 계속 평타를 치게 함
+    P.wAutoTarget=inRange;
+    P.atkWindup=true;P.atkWindupTimer=Math.max(0,0.27/atkSpeedMult-0.2);
+    P.atkWindupTarget=inRange;moveTarget=null;sfxAtk();
+  }
+  // 범위 밖인 경우: atkTarget이 유지됐다면 processAutoAttack이 추격, null이면 정지
+}
+
+// W 후딜 종료 시: 버퍼된 다음 스킬(2번째 W 포함)이 있으면 발동. (착지 자동평타는 executeWTeleport에서 이미 즉시 시작됨)
 function onWPostDelayEnd(){
   // 후딜 중 다른 스킬을 즉시 시전했을 수 있으므로, 그 스킬이 아직 시전 중이면 여기서 W를 흘리지 않는다.
   // (버퍼는 그대로 두고, 시전이 끝나면 위 자동 플러시가 처리)
-  if(skillBuffer||wBuffer2){ if(!isCasting()) flushBuffer(); return; }
-  // 자동평타 처리:
-  // - 착지 지점이 평타 사거리 안에 적이 있으면 자동평타 (이전 명령 무관)
-  // - 범위 밖이면 평타 명령(atkTarget)이 유지된 경우만 추격, E/Q/S로 끊기면 아무 것도 안 함
-  if(!P.eCasting&&!P.qCasting&&!P.rCasting&&!P.dashing&&!P.hopping&&!P.atkWindup){
-    let inRange=null, bd=Infinity;
-    for(const d of dummies){
-      if(!d.alive)continue;
-      const dd=dist(P,d);
-      if(dd<=CONF.atkRange+d.r&&dd<bd){bd=dd;inRange=d;}
-    }
-    if(inRange){
-      // W 착지 자동평타: 평타명령(atkTarget)과 별개로 wAutoTarget에 저장해 계속 평타를 치게 함
-      P.wAutoTarget=inRange;
-      P.atkWindup=true;P.atkWindupTimer=Math.max(0,0.27/atkSpeedMult-0.2);
-      P.atkWindupTarget=inRange;moveTarget=null;sfxAtk();
-    }
-    // 범위 밖인 경우: atkTarget이 유지됐다면 processAutoAttack이 추격, null이면 정지
-  }
+  if(skillBuffer||wBuffer2){ if(!isCasting()) flushBuffer(); }
 }
 
 // ============================================================
@@ -1193,7 +1198,7 @@ function castR(){
       checkDaggerPickup();
       const _footPicked = daggers.length<_nDagBefore;
       if(_wWasReady){
-        // W가 준비돼 있었으면(쿨초모드 등) 선입력 W 발동 → 발밑 회수로 생긴 0.05쿨이 막지 않도록 해제
+        // W가 준비돼 있었으면(쿨초모드 등) 선입력 W 발동 → 발밑(걸어서) 회수는 쿨을 0으로 두어 막지 않음
         if(_footPicked){ P.wCd=0; P.wInternalCd=0; }
       } else if(skillBuffer===castW){
         // W가 원래 쿨 중이었으면 선입력 W는 발동하지 않음 (발밑단검만 회수). "준비 안 됨"도 안 뜨게 버퍼 비움(2칸 모두).
@@ -1211,9 +1216,9 @@ function castR(){
         if(near) P.wAutoTarget=near;
       }
       flushBuffer(); // 선입력 W 발동
-      // 발밑단검을 회수했다면(쿨초), 이어진 W가 적에게 비약하며 건 풀 쿨(wCd)에 그 쿨초가 덮이지 않도록 보존.
+      // 발밑단검을 걸어서 회수했다면(쿨 0초), 이어진 W가 적에게 비약하며 건 풀 쿨(wCd)에 그 초기화가 덮이지 않도록 보존.
       //  (내부 쿨 wInternalCd=0.3은 그대로 둔다 — 사용자 요청)
-      if(_footPicked && P.wCd>0.05){ P.wCd=0.05; }
+      if(_footPicked && P.wCd>0.05){ P.wCd=0; }
     },'R');
   },'R');
 }
@@ -2178,7 +2183,11 @@ document.addEventListener('keydown',e=>{
   else if(k==='w'){
     // W는 2회까지 선입력 가능. 시전 중(R/대시/Q/E)이거나 W 후딜 중이면 독립 2칸 버퍼에 쌓고, 아니면 즉시 시전.
     // (다른 스킬은 후딜 중 즉시 나가지만, W만은 후딜 종료 후 선입력으로 발동)
-    if(isCasting()||P.qCasting||P.eCasting||P.wPostDelay>0) bufferW();
+    if(isCasting()||P.qCasting||P.eCasting||P.wPostDelay>0){
+      // 후딜 중 W 선입력: 진행 중인 착지 자동평타를 취소(W가 우선) → 후딜 종료 후 onWPostDelayEnd가 W 발동
+      if(P.wPostDelay>0){ P.atkWindup=false; P.atkWindupTarget=null; P.wAutoTarget=null; }
+      bufferW();
+    }
     else tryOrBuffer(castW);
   }
   else if(k==='e')tryOrBuffer(castE);
