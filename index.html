@@ -49,10 +49,23 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 #cdr-ui{position:fixed;top:80px;right:8px;background:rgba(0,0,0,.6);padding:10px 14px;border-radius:6px;font-size:13px;user-select:none;z-index:20}
 #cdr-ui .label{color:#aaa;margin-bottom:6px}
 #cdr-ui .row{display:flex;align-items:center;gap:8px}
-#cdr-ui button{width:28px;height:28px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-#cdr-ui button:hover{background:#333;border-color:#5af}
+#cdr-ui .row button{width:28px;height:28px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#cdr-ui .row button:hover{background:#333;border-color:#5af}
 #cdr-ui .val{font-size:18px;font-weight:bold;color:#5af;min-width:50px;text-align:center}
 #cdr-ui .rate{font-size:12px;color:#f80;margin-top:4px;text-align:center}
+#rdag-ui{position:fixed;top:80px;left:8px;background:rgba(0,0,0,.6);padding:10px 12px;border-radius:6px;font-size:11px;color:#ddd;user-select:none;z-index:20;width:196px}
+#rdag-ui .rd-title{color:#aaa;font-size:12px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:4px;cursor:pointer}
+#rdag-ui .rd-grp{margin-bottom:6px}
+#rdag-ui .rd-dir{color:#5af;font-weight:bold;margin-bottom:2px}
+#rdag-ui label{display:flex;align-items:center;gap:4px;margin:1px 0}
+#rdag-ui label>span{display:inline-block;width:24px;color:#aaa}
+#rdag-ui input[type=range]{width:74px}
+#rdag-ui input[type=number]{width:46px;background:#111;color:#ddd;border:1px solid #444;border-radius:3px}
+#rdag-ui button{margin-top:4px;width:100%;padding:3px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:11px;cursor:pointer}
+#rdag-ui button:hover{background:#333;border-color:#5af}
+#rdag-ui.collapsed .rd-grp,#rdag-ui.collapsed button{display:none}
+#cd-warning{position:fixed;left:50%;bottom:140px;transform:translateX(-50%);color:#fff;font-size:11px;font-weight:bold;text-shadow:0 0 4px #000,0 0 2px #000,1px 1px 0 #000;padding:4px 12px;pointer-events:none;opacity:0;transition:opacity .25s;z-index:100;white-space:nowrap}
+#cd-warning.show{opacity:1}
 </style>
 </head>
 <body>
@@ -74,7 +87,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
     <button id="cdr-up">+</button>
   </div>
   <div class="rate" id="cdr-rate">감소율: 0%</div>
-  <div style="margin-top:8px"><button id="cd-reset-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">쿨초기화 모드: OFF</button></div>
+  <div style="margin-top:8px"><button id="cd-reset-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">쿨초기화 모드: OFF</button><div style="font-size:10px;color:#888;text-align:center;margin-top:2px">기본 단축키는 ~(물결표)</div></div>
   <div style="margin-top:10px" class="label">공격속도</div>
   <div class="row">
     <button id="as-down">-</button>
@@ -84,6 +97,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk" checked> 화면 흔들림</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="quarter-chk" checked> 쿼터뷰</label></div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="cursor-chk" checked> 커스텀 커서</label></div>
   <div style="display:none" class="row">
     <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
   </div>
@@ -99,6 +113,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
   <div class="sk ready" id="bD" style="margin-left:12px;border-color:#888"><span class="key">D</span><img class="icon-img" src="icon/daggerskill.png" style="width:38px;height:38px"><div class="cd" id="cD"></div></div>
   <div class="sk ready" id="bF" style="border-color:#5af"><span class="key">F</span><img class="icon-img" src="icon/blinkfix.png" style="width:38px;height:38px"><div class="cd" id="cF"></div></div>
 </div>
+<div id="cd-warning">스킬이 아직 준비되지 않았습니다!</div>
 <div id="credit">ⓘ 본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
 <div id="credit-modal">
   <div class="box">
@@ -115,7 +130,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 // ============================================================
 // CONFIG
 // ============================================================
-const PX = 711 / 11;              // 1 meter = 64.6px (1920x1080 기준 711px = 11m)
+const PX = 770 / 11;              // 1 meter = 70px (1920x1080 기준 770px = 11m, 카티야 스킬 사거리 스크린샷 재측정)
 const FPS = 60;
 const dt = 1 / FPS;
 let tick = dt;
@@ -167,8 +182,23 @@ function recalcAs(){
 function getCdrRate(){ return (CDR_TABLE[cdrStat]||0) / 100; }
 function applyCdr(baseCd){ return cdResetMode ? 0 : baseCd * (1 - getCdrRate()); }
 
+// 카메라(1920×1080) 기준 이동속도: 1초에 3.5m (1m = 70 카메라픽셀)
+const CAMERA_REF_W = 1920;
+const PX_PER_METER = 70;             // 1m = 70px (1920 카메라 기준, PX와 동기화 / 카티야 스킬 사거리 재측정)
+const PLAYER_SPEED_MPS = 3.5;        // 1초당 3.5m
+// E 넉백 속도 프로파일: 가속(ease-in 0→7.5m/s, 0.2m) → 순항(등속 7.5m/s, 1.2m) → 감속 꼬리(ease-out 7.5→0, 0.3m) = 총 1.7m
+// 정점 7.5m/s에서 각 구간 속도가 연속이라 끊김 없이 자연스러운 가속→감속.
+const EHOP_PEAK      = 7.5;                  // 정점/순항 속도 (m/s)
+const E_HOP_ACC_DIST = 0.2 * PX;             // 가속 구간 거리
+const E_HOP_ACC_DUR  = 2*0.2/EHOP_PEAK;      // ≈0.0533s (ease-in이라 평균=정점/2)
+const E_HOP_CRZ_DIST = 1.2 * PX;             // 순항 구간 거리
+const E_HOP_CRZ_DUR  = 1.2/EHOP_PEAK;        // =0.16s
+const E_HOP1_DIST    = E_HOP_ACC_DIST + E_HOP_CRZ_DIST; // 가속+순항 합 (1.4m)
+const E_HOP1_DUR     = E_HOP_ACC_DUR + E_HOP_CRZ_DUR;   // eHopActive(가속+순항) 지속 ≈0.213s
+const E_HOP2_DIST    = 0.3 * PX;             // 감속 꼬리 거리
+const E_HOP2_DUR     = 2*0.3/EHOP_PEAK;      // =0.08s (ease-out, 7.5→0)
 const CONF = {
-  moveSpeed: 3.948 * PX,            // per second (프레임 독립, 기본 3.76 × 105%)
+  moveSpeed: PLAYER_SPEED_MPS * PX_PER_METER,  // = 263.2 px/sec (1920 기준)
   atkRange: 1.65 * PX,
   atkCd: 1.0,                    // seconds (공속 하향)
 
@@ -190,10 +220,11 @@ const CONF = {
   qEnhHalfAngle: Math.PI/4.8,        // 부채꼴 반각 37.5° (총 75°)
 
   // W
-  wRange: 5 * PX,                // 5m
+  wRange: 5.5 * PX,              // 5.5m
   wDmg: 100,
   wWidth: 2.5 * PX,
   wCd: 12,
+  wPostDelay: 0.15,             // W 시전 후딜(초). 이 동안 다른 스킬은 즉시 사용 가능(W만 버퍼→후딜 후 선입력), 이동/평타는 잠금 + 비약 궤적이 그려지며 데미지가 시작→착지 순으로 시간차 적중
   wSpeed: 18 * PX * dt,
 
   // E
@@ -211,8 +242,9 @@ const CONF = {
   // R
   rInnerRadius: 178,              // 1920x1080 기준 178px
   rInnerDmg: 150,
-  rDaggerPathLen: 205,            // 인접 단검 간 290px (205*√2≈290)
-  rDaggerPathW: 0.8 * PX,
+  // 3.9m 방사 배치 → 인접 단검 간 252*√2≈356px≈5.5m = W 사거리 (W-연계 메커닉)
+  rDaggerPathLen: 252,            // 원작 3.9m (3.9*PX≈252px) — 단검 위치 = 경로 피해 길이
+  rDaggerPathW: 0.8 * PX,         // 원작 0.8m — 경로 피해 폭
   rDaggerDmg: 40,
   rCd: 60,
   rCastTime: 0.9,                // 선딜 0.3 + 후딜 0.6
@@ -238,43 +270,57 @@ const CONF = {
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 let quarterView = true;
-const cam = { roll: -8, scaleY: 1.01, scaleX: 0.92, tiltX: 44.5, tiltY: 0.5, persp: 700, zoom: 2 };
+const cam = { roll: -8, scaleY: 1.01, scaleX: 0.92, tiltX: 44.5, tiltY: 0.5, persp: 1600, zoom: 1.57 };
 function applyCamera(){
   if(quarterView){
     canvas.style.transform=`scale(${cam.zoom}) perspective(${cam.persp}px) rotateX(${cam.tiltX}deg) rotateY(${cam.tiltY}deg) rotate(${cam.roll}deg) scale(${cam.scaleX},${cam.scaleY})`;
   } else {
-    canvas.style.transform=`scale(${cam.zoom*0.95})`;
+    canvas.style.transform=`scale(${cam.zoom})`;
   }
 }
 applyCamera();
+
+// ── 좌표 투영: CSS perspective 변형의 정/역 ──
+function _wrapRect(){ return document.getElementById('canvas-wrap').getBoundingClientRect(); }
+function screenToWorld(clientX, clientY){
+  const r=_wrapRect();
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let xs=clientX-cx, ys=clientY-cy;
+  xs/=cam.zoom; ys/=cam.zoom;
+  if(quarterView){
+    const tx=cam.tiltX*Math.PI/180, ty=cam.tiltY*Math.PI/180, rr=cam.roll*Math.PI/180, d=cam.persp;
+    const cty=Math.cos(ty)||1e-6, ctx_=Math.cos(tx)||1e-6;
+    const A=ys*Math.tan(tx)-xs*Math.tan(ty)/ctx_;
+    const k=1+A/d;
+    const u=xs/(k*cty);
+    const v=(ys/k-u*Math.sin(ty)*Math.sin(tx))/ctx_;
+    const ux=u*Math.cos(rr)+v*Math.sin(rr);
+    const vy=-u*Math.sin(rr)+v*Math.cos(rr);
+    xs=ux/cam.scaleX; ys=vy/cam.scaleY;
+  }
+  const sxk=canvas.width/r.width, syk=canvas.height/r.height;
+  return { x: xs*sxk+canvas.width/2, y: ys*syk+canvas.height/2 };
+}
+
 // 내부 버퍼 해상도는 고정 → 렌더링 비용과 비율이 해상도 독립적으로 일관됨
-const DESIGN_W = 2400;
-const DESIGN_H_Q = 1600;  // 쿼터뷰
-const DESIGN_H_F = 1350;  // 평면
+const DESIGN_W = 1920;
+const DESIGN_H_Q = 1280;  // 쿼터뷰 (3:2)
+const DESIGN_H_F = 1080;  // 평면 (16:9)
+// 내부 캔버스는 항상 1920×1080(또는 1920×1280) 고정 → 게임 내 거리·크기는 해상도 무관 일정.
+// CSS 표시 크기만 현재 창에 맞춰 비례 축소/확대 (월드 좌표·물리 영향 없음).
 function fitCanvas() {
   const vw = window.innerWidth, vh = window.innerHeight - 20;
-  const s = Math.min(vw / canvas.width, vh / canvas.height);
-  canvas.style.width = (canvas.width * s) + 'px';
-  canvas.style.height = (canvas.height * s) + 'px';
-}
-// 그리드 오프스크린 캐시 (매 프레임 100+ stroke 호출 회피)
-const gridCanvas = document.createElement('canvas');
-const gridCtx = gridCanvas.getContext('2d');
-function renderGrid() {
-  gridCanvas.width = canvas.width;
-  gridCanvas.height = canvas.height;
-  gridCtx.strokeStyle = '#1a1a2a';
-  gridCtx.lineWidth = 1;
-  gridCtx.beginPath();
-  for (let x = 0; x < canvas.width; x += 40) { gridCtx.moveTo(x, 0); gridCtx.lineTo(x, canvas.height); }
-  for (let y = 0; y < canvas.height; y += 40) { gridCtx.moveTo(0, y); gridCtx.lineTo(canvas.width, y); }
-  gridCtx.stroke();
+  const scale = Math.min(vw / canvas.width, vh / canvas.height);
+  canvas.style.width = (canvas.width * scale) + 'px';
+  canvas.style.height = (canvas.height * scale) + 'px';
 }
 function resize() {
   canvas.width = DESIGN_W;
   canvas.height = quarterView ? DESIGN_H_Q : DESIGN_H_F;
+  // 카메라 너비가 1920에서 벗어나면 비례 보정 (1920에선 그대로 244 px/sec)
+  // PX(=70px/m)는 캔버스 크기와 무관하게 고정이므로 이동속도도 고정 (스킬 사거리와 동일 기준 유지)
+  CONF.moveSpeed = PLAYER_SPEED_MPS * PX_PER_METER;
   fitCanvas();
-  renderGrid();
 }
 resize();
 window.addEventListener('resize', () => { fitCanvas(); });
@@ -289,7 +335,7 @@ const CURSOR_H=Math.round(74*347/619);
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 function beep(f,d,t='square',v=.1){const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
 // WAV 효과음 (WebAudio AudioBuffer로 디코드 — 지연 없음)
-const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger','daggerskill','daggerskill2','cloakend'];
+const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger','daggerskill','daggerskill2','cloakend','cooldown'];
 const sfxBuf={};
 sfxNames.forEach(name=>{
   fetch(`sfx/${name}.wav`).then(r=>r.arrayBuffer()).then(b=>AC.decodeAudioData(b)).then(buf=>{sfxBuf[name]=buf;}).catch(()=>{});
@@ -338,6 +384,16 @@ function ptInRect(px,py,cx,cy,a,hw,hh){
   const ly=-dx*s+dy*c;
   return Math.abs(lx)<=hw && Math.abs(ly)<=hh;
 }
+// 반지름 r인 원이 회전 사각형(중심 cx,cy / 각도 a / 반치수 hw,hh)에 닿는가
+function circleHitsRect(px,py,cx,cy,a,hw,hh,r){
+  const dx=px-cx,dy=py-cy;
+  const c=Math.cos(a),s=Math.sin(a);
+  const lx=dx*c+dy*s;
+  const ly=-dx*s+dy*c;
+  const ddx=Math.max(Math.abs(lx)-hw,0);
+  const ddy=Math.max(Math.abs(ly)-hh,0);
+  return ddx*ddx+ddy*ddy<=r*r;
+}
 function ptInFan(px,py,cx,cy,a,r,halfAng,objR){
   const d=Math.hypot(px-cx,py-cy);
   if(d>r)return false;
@@ -368,10 +424,22 @@ function log(msg) {
   logEl.innerHTML = logs.map(l => `<div>${l}</div>`).join('');
 }
 
+// 쿨타임 중 스킬 시도 알림
+const cdWarningEl = document.getElementById('cd-warning');
+let cdWarningTimer = null;
+function cooldownNotify(skillName){
+  playSfx('cooldown');
+  log(`<span style="color:#f80">${skillName} 스킬이 아직 준비되지 않았습니다!</span>`);
+  cdWarningEl.classList.add('show');
+  if(cdWarningTimer) clearTimeout(cdWarningTimer);
+  cdWarningTimer = setTimeout(()=>{ cdWarningEl.classList.remove('show'); cdWarningTimer=null; }, 4000);
+}
+
 // ============================================================
 // GAME STATE
 // ============================================================
 const mouse = {x:0, y:0};
+const liveMouse = {x:0, y:0}; // flushBuffer가 덮어쓰지 않는 항상-실시간 커서 좌표 (Q/Q2 스킬샷 방향용)
 let moveTarget = null;
 
 // Player
@@ -402,12 +470,18 @@ const P = {
   locked: false, lockTimer: 0,
   // dash (W)
   dashing: false, dashTarget: null, dashType: null, dashStart: null,
+  // W 후딜(0.15초): 이 동안 다른 스킬은 즉시 사용 가능(W만 선입력 버퍼), 이동/평타는 잠금. 종료 시 버퍼된 W(2번째 포함) 발동 또는 착지 자동평타
+  wPostDelay: 0,
   // E hop
   hopping: false, hopVx: 0, hopVy: 0, hopTimer: 0,
   // Q casting (시전 중 이동 불가)
   qCasting: false, qCastTimer: 0,
   // E casting (1초 시전, 0.3초 후 스킬 캔슬 가능)
   eCasting: false, eCastTimer: 0, eCanCancel: false, eHopActive: false, eHopTimer: 0, eHopA: 0,
+  eHopElapsed: 0, eHopDone: 0,                        // E 넉백 1구간(가속+순항) 진행 상태
+  eMoveLockTimer: 0,                                  // E 입력 후 이동 잠금(넉백 모션과 별개, 0.8s까지 이동 무시·선입력은 허용)
+  eHop2Active: false, eHop2Elapsed: 0, eHop2Done: 0,  // E 넉백 2구간(감속 꼬리)
+  ewbCancelReady: false,  // E를 W/블링크로 캔슬 가능해지는 시점(20프레임) 도달 여부
   _eCastId: 0,
   // Blink
   blinkCd: 0,
@@ -422,10 +496,31 @@ const effects = [];
 const walls = [];
 let skillBuffer = null;  // 선입력 버퍼 (시전시간 중 마지막 입력 1개 저장)
 let skillBufferMouse = null; // 선입력 시점의 마우스 좌표
+// ── W 전용 2번째 선입력 슬롯 (독립) ──
+//  W는 다른 스킬과 달리 2회까지 선입력 가능. 1번째 입력은 skillBuffer를 그대로 쓰고,
+//  skillBuffer가 이미 차 있을 때 들어온 W만 이 wBuffer2에 저장한다.
+//  → 2개가 차는 경우는 [아무 스킬, W] 또는 [W, W] 뿐. 비-W 스킬 입력 시 wBuffer2는 취소(null).
+let wBuffer2 = null;
+let wBuffer2Mouse = null;
 const CD_BUFFER_THRESHOLD = 0.1; // 쿨다운 ≤ 이 값일 때 선입력 허용
+// 주의: W 후딜(wPostDelay)은 더 이상 isCasting에 포함하지 않는다 → 후딜 중 다른 스킬은 즉시 시전 가능.
+// (W만 후딜 중 입력 시 버퍼에 쌓아 후딜 종료 후 선입력으로 발동 — keydown W 분기에서 별도 처리)
 function isCasting(){return P.dashing||P.rCasting||P.qCasting||(P.eCasting&&!P.eCanCancel);}
 function tryOrBuffer(fn){if(isCasting()){skillBuffer=fn;skillBufferMouse={x:mouse.x,y:mouse.y};}else{fn();}}
-function flushBuffer(){if(skillBuffer){const fn=skillBuffer;const sm=skillBufferMouse;skillBuffer=null;skillBufferMouse=null;const ox=mouse.x,oy=mouse.y;mouse.x=sm.x;mouse.y=sm.y;fn();mouse.x=ox;mouse.y=oy;}}
+// W 선입력(독립 2칸): skillBuffer가 비었으면 1칸째, 차 있으면 2칸째(wBuffer2). 둘 다 차면 무시(3번째 불가).
+function bufferW(){
+  const m={x:mouse.x,y:mouse.y};
+  if(!skillBuffer){ skillBuffer=castW; skillBufferMouse=m; }
+  else if(!wBuffer2){ wBuffer2=castW; wBuffer2Mouse=m; }
+}
+// flush: 한 번에 1개만 발동. skillBuffer(먼저 입력) 우선, 없으면 wBuffer2(2번째 W).
+let bufferFlushing=false; // 선입력 플러시로 발동 중인지 (대상 없는 선입력 W의 "비약 대상 없음" 메시지 억제용)
+function flushBuffer(){
+  let fn=null, sm=null;
+  if(skillBuffer){ fn=skillBuffer; sm=skillBufferMouse; skillBuffer=null; skillBufferMouse=null; }
+  else if(wBuffer2){ fn=wBuffer2; sm=wBuffer2Mouse; wBuffer2=null; wBuffer2Mouse=null; }
+  if(fn){ const ox=mouse.x,oy=mouse.y; mouse.x=sm.x;mouse.y=sm.y; bufferFlushing=true; fn(); bufferFlushing=false; mouse.x=ox;mouse.y=oy; }
+}
 function bufferShortCd(fn, cd){ if(cd>0 && cd<=CD_BUFFER_THRESHOLD){ skillBuffer=fn; skillBufferMouse={x:mouse.x,y:mouse.y}; } }
 let aMode = false;       // A키 공격 모드 (사거리 표시 + 좌클릭 타겟팅)
 let shake = {x:0,y:0,t:0,m:0};
@@ -451,7 +546,6 @@ function spawnDagger(x,y){
   y = clamp(y, 10, canvas.height-10);
   daggers.push({x, y, age:0, pickup:false});
   sfxDaggerDrop();
-  log('🗡 단검 생성');
 }
 
 function pickupDagger(idx){
@@ -461,7 +555,6 @@ function pickupDagger(idx){
   // 내부쿨다운도 함께 클리어 (W로 적을 친 뒤 경로 단검 회수 시 0.3초 내부쿨이 남아있던 버그 수정)
   P.wCd=0.05;
   P.wInternalCd=0;
-  log('단검 회수 → W 쿨다운 0.05초!');
   // auto-throw at nearest enemy within 5m
   let best=null, bestD=Infinity;
   for(const d of dummies){
@@ -480,11 +573,9 @@ function pickupDagger(idx){
       r:5, life:40, fromPassive:true, target:best,
     });
     sfxDagger();
-    log(`🗡 단검 투척! (${best.eMark?'마크 +25%':''})`);
     // E mark: reduce E cd by 1s
     if(best.eMark && P.eCd>0){
       P.eCd = Math.max(0, P.eCd - 1);
-      log('협상 쿨다운 -1초');
     }
   }
 }
@@ -492,8 +583,11 @@ function pickupDagger(idx){
 // Check if player walks near daggers
 function checkDaggerPickup(){
   if(P.rCasting)return;
+  // 캐릭터 본체(P.r)가 화면에 표시되는 파란 원(반지름 = daggerPickupR×dagVis.scale)에 닿으면 줍기.
+  // 두 원이 외접하는 거리 = 파란원 반지름 + 캐릭터 반지름.
   for(let i=daggers.length-1;i>=0;i--){
-    if(dist(P,daggers[i])<CONF.daggerPickupR+10){
+    const ringR = CONF.daggerPickupR * dagVis.scale;
+    if(dist(P,daggers[i]) < ringR + P.r){
       pickupDagger(i);
     }
   }
@@ -575,9 +669,7 @@ function resolveAttack(){
     effects.push({type:'dagdrop',x:dgX,y:dgY,sx:tgt.x,sy:tgt.y,t:0,mt:9999,spawnTime:performance.now()+667}); // 단검 생성 시 제거
     schedule(0.667,()=>{
       spawnDagger(dgX,dgY);
-      log('강화 평타 단검 생성 (적 뒤)');
     });
-    log('⚡ 강화 공격!');
   } else {
     hitDummy(tgt, 40, atkAngle, false);
     sfxAtkHit();
@@ -592,7 +684,7 @@ function cancelAttack(){
 function processAutoAttack(){
   // 평타명령(atkTarget) 우선, 없으면 W 착지 자동평타 타겟(wAutoTarget) 사용
   const tgt=(P.atkTarget&&P.atkTarget.alive)?P.atkTarget:((P.wAutoTarget&&P.wAutoTarget.alive)?P.wAutoTarget:null);
-  if(!tgt||P.dashing||P.rCasting||P.hopping||P.qCasting||P.eCasting)return;
+  if(!tgt||P.dashing||P.rCasting||P.hopping||P.qCasting||P.eCasting||P.wPostDelay>0)return;
   // W후 자동평타 윈드업 중이면 processAutoAttack 무시 (윈드업 타이머가 처리)
   if(P.atkWindup)return;
   // moveTarget이 있으면 이동 우선 (우클릭 이동 중)
@@ -611,7 +703,7 @@ function processAutoAttack(){
 
 // 좌클릭 평타 (마우스 위치 기준)
 function doBasicAttack(){
-  if(P.atkCd>0||P.locked||P.dashing||P.rCasting||P.hopping)return;
+  if(P.atkCd>0||P.locked||P.dashing||P.rCasting||P.hopping||P.wPostDelay>0)return;
   let tgt=null,bd=Infinity;
   for(const d of dummies){
     if(!d.alive)continue;
@@ -630,7 +722,7 @@ function doBasicAttack(){
 // Q - 표리
 // ============================================================
 function castQ(){
-  if(P.qCd>0){ bufferShortCd(castQ, P.qCd); return; }
+  if(P.qCd>0){ cooldownNotify('Q'); return; }
   if(P.dashing||P.rCasting||P.hopping)return;
   if(P.qCasting){
     if(!cdResetMode)return;
@@ -639,7 +731,11 @@ function castQ(){
   }
   if(P.eCasting&&!P.eCanCancel)return; // E 선딜 0.2초 중 스킬 불가
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
-  const a=ang(P,mouse);
+  // Q/Q2는 스킬샷: 시전 순간의 실제 커서 월드 지점(aim)을 고정해두고, 실제 발사(판정) 시점에 캐릭터 위치에서 그 지점을 향해 각도를 다시 계산한다.
+  // 이유: E 넉백이 Q 시전 도중 캐릭터를 뒤로 밀어내는데, 각도를 시전 시점 위치로 고정하면 밀려난 위치에서 커서를 안 향하고 정면(넉백 축)으로 치우쳐 나가는 버그가 생김.
+  // liveMouse(실시간 커서)를 쓰는 이유: flushBuffer가 mouse를 버퍼 시점 좌표로 덮어써도 실제 커서 방향을 유지.
+  const aimX=liveMouse.x, aimY=liveMouse.y;
+  const a=ang(P,{x:aimX,y:aimY});
   P.angle=a;
   moveTarget=null;
   P.atkTarget=null;P.wAutoTarget=null;
@@ -648,9 +744,13 @@ function castQ(){
   P.qCd=0.3; // 임시 쿨다운 (연타 방지, 판정 시 실제 쿨다운으로 덮어씀)
 
   // 0.2초 선딜 후 판정
-  const castX=P.x, castY=P.y;
   if(wasEnhanced) sfxQenh(); else sfxQ();
   schedule(0.2,()=>{
+    // E 넉백 등으로 위치가 바뀌었을 수 있으므로 판정 시점 좌표 사용
+    const castX=P.x, castY=P.y;
+    // 각도도 발사 시점의 실제 위치에서 고정된 커서 지점(aim)을 향해 재계산 → 넉백으로 밀려도 마우스 방향 유지
+    const a=ang({x:castX,y:castY},{x:aimX,y:aimY});
+    P.angle=a;
     if(wasEnhanced){
       // Enhanced Q - fan shape
       let anyHit=false;
@@ -668,7 +768,6 @@ function castQ(){
       document.getElementById('bQ').classList.remove('enhanced');
       document.getElementById('qIcon').src='icon/shoqfix.png';
       P.qCd=Math.max(0,applyCdr(CONF.qCd)-4);
-      log('강화 Q 사용 → 단검 생성, 쿨다운 -4초');
     } else {
       // Normal Q - rectangle
       let anyHit=false;
@@ -689,7 +788,6 @@ function castQ(){
         P.qEnhTimer=CONF.qEnhDur;
         document.getElementById('bQ').classList.add('enhanced');
         document.getElementById('qIcon').src='icon/shoq2fix.png';
-        log('Q 적중! 쿨다운 시작 (-3초), 강화Q 준비');
       } else {
         P.qCd=applyCdr(CONF.qCd);
       }
@@ -704,7 +802,7 @@ function castQ(){
 let wPending=null; // {target, type}
 
 function castW(){
-  if(P.wCd>0){ return; }
+  if(P.wCd>0){ cooldownNotify('W'); return; }
   if(cdResetMode && P.wInternalCd>0){ skillBuffer=castW; skillBufferMouse={x:mouse.x,y:mouse.y}; return; }
   if(P.locked||P.dashing||P.hopping)return;
   if(P.rCasting)return;
@@ -721,35 +819,48 @@ function castW(){
       bestD=dm;bestTarget=d;bestType='enemy';
     }
   }
-  // Check daggers (단검 주위 원 범위까지 타겟팅 가능)
+  // Check daggers — mouse도 논리좌표이므로 dg 논리좌표와 직접 비교
   for(let i=0;i<daggers.length;i++){
     const dg=daggers[i];
-    const dm=dist(mouse,dg);
+    const dm=Math.hypot(mouse.x-dg.x,mouse.y-dg.y);
     if(dm<CONF.daggerPickupR+20 && dm<bestD){
       bestD=dm;bestTarget={...dg,idx:i};bestType='dagger';
     }
   }
 
-  if(!bestTarget){log('W: 대상 없음');wPending=null;return}
+  if(!bestTarget){
+    // 맨땅 클릭: 기존 W 추적 중이면 이전 대상 유지하고 계속 접근
+    if(wPending){
+      if(!P.eCasting) moveTarget={x:wPending.target.x,y:wPending.target.y};
+      return;
+    }
+    // 선입력(버퍼 플러시)으로 발동된 W가 대상을 못 찾으면 조용히 무시 (후딜 중 선입력 W 매싱 시 메시지 도배 방지)
+    if(!bufferFlushing) log('비약 대상 없음');
+    return;
+  }
 
   const dp=dist(P,bestTarget);
   if(dp<=CONF.wRange){
     // 범위 안 → E 진행 중이면 E 캔슬 후 즉시 W (느린 EW: E 20프레임 마크 이후 W 입력)
     if(P.eCasting){
       cancelScheduledByTag('E');
-      P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eCastTimer=0;P.eHopTimer=0;
+      P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eHop2Active=false;P.eCastTimer=0;P.eHopTimer=0;P.eMoveLockTimer=0;
     }
     executeW(bestTarget,bestType);
   } else {
     // 범위 밖 → E는 유지 (E 후딜이 끝나야 접근 시작), 대기열에만 등록
     wPending={target:bestTarget,type:bestType};
     if(!P.eCasting) moveTarget={x:bestTarget.x,y:bestTarget.y};
-    log('W: 대상 접근 중...');
   }
 }
 
 function executeW(target,type){
   sfxW();
+  // 평타명령(우클릭 추격) 해제: 단, W 대상이 "더미(enemy)"일 때만 해제한다.
+  // (착지 시 사거리 내 더미가 있으면 executeWTeleport가 wAutoTarget을 따로 세팅 → 자동평타는 계속 유효,
+  //  하지만 atkTarget이 남지 않으므로 이후 먼 단검에 W를 타도 더미를 향해 추격하지 않음)
+  // 예외: W 대상이 "단검(dagger)"이면 평타명령을 유지한다 → 단검에 W를 타도 기존 평타명령 대상으로 계속 접근.
+  if(type==='enemy') P.atkTarget=null;
   P.atkWindup=false;P.atkWindupTarget=null;P.wAutoTarget=null;cancelAttack();
   P.dashing=true;
   P.dashTarget=target;
@@ -766,7 +877,7 @@ function executeW(target,type){
 
 // update에서 호출: W 대기 중 범위 진입 체크
 function checkWPending(){
-  if(!wPending||P.wCd>0||P.dashing||P.rCasting)return;
+  if(!wPending||P.wCd>0||P.dashing||P.rCasting||P.wPostDelay>0)return;
   // E 시전 중엔 대기 (W 범위 밖에서 E를 누른 경우 E 후딜 끝난 뒤 접근/시전)
   if(P.eCasting)return;
   const t=wPending.target;
@@ -795,26 +906,14 @@ function executeWTeleport(){
     const behind=ang({x:startX,y:startY},tgt);
     P.x=tgt.x+Math.cos(behind)*50;
     P.y=tgt.y+Math.sin(behind)*50;
-    // 경로상 피해
-    for(const dm of dummies){
-      if(!dm.alive)continue;
-      if(lineHitsCircle(startX,startY,P.x,P.y,dm.x,dm.y,dm.r+CONF.wWidth/2)){
-        hitDummy(dm,CONF.wDmg,behind,true);
-        wHitAny=true;
-      }
-    }
+    // 경로상 피해 (시작→착지 순으로 시간차 적중)
+    wHitAny=applyWPathDamage(startX,startY,P.x,P.y,behind);
   } else {
     // 단검 위치로 순간이동
     P.x=tgt.x;P.y=tgt.y;
-    // 경로상 피해
+    // 경로상 피해 (시작→착지 순으로 시간차 적중)
     const ba=ang({x:startX,y:startY},{x:tgt.x,y:tgt.y});
-    for(const dm of dummies){
-      if(!dm.alive)continue;
-      if(lineHitsCircle(startX,startY,P.x,P.y,dm.x,dm.y,dm.r+CONF.wWidth/2)){
-        hitDummy(dm,CONF.wDmg,ba,true);
-        wHitAny=true;
-      }
-    }
+    wHitAny=applyWPathDamage(startX,startY,P.x,P.y,ba);
     // 대상 단검 줍기
     const idx=daggers.findIndex(dg=>Math.hypot(dg.x-tgt.x,dg.y-tgt.y)<CONF.daggerPickupR);
     if(idx>=0) pickupDagger(idx);
@@ -824,14 +923,36 @@ function executeWTeleport(){
   const wPathDx=P.x-startX, wPathDy=P.y-startY;
   const wPathLen=Math.hypot(wPathDx,wPathDy);
   if(wPathLen>0){
-    const wPathCx=(startX+P.x)/2, wPathCy=(startY+P.y)/2;
+    const dirx=wPathDx/wPathLen, diry=wPathDy/wPathLen; // 도약 방향
     const wPathA=Math.atan2(wPathDy,wPathDx);
-    const wHalfLong=wPathLen/2+CONF.daggerPickupR*1.5; // 가로: 경로+여유
-    const wHalfShort=CONF.daggerPickupR*2;                // 세로: 단검 반지름의 2배
+    const frontMargin=CONF.daggerPickupR*1.5;
+    // 회수 사각형은 원래 대칭형(옆/앞 범위 그대로). 뒤쪽 컷은 사각형이 아니라 별도 평면으로 처리.
+    const wPathCx=(startX+P.x)/2, wPathCy=(startY+P.y)/2;
+    const wHalfLong=wPathLen/2+frontMargin; // 가로: 경로+앞여유
+    const wHalfShort=CONF.daggerPickupR*2;   // 세로: 단검 반지름의 2배
+    // 판정: 단검 중심점이 아니라 단검의 파란 원(반지름 blueR)이 사각형에 닿으면 회수.
+    //  파란 원 크기만큼 사각형을 줄여(blueR), 실효 범위는 (중심점 in 사각형)과 동일하게 유지.
+    const blueR=CONF.daggerPickupR*dagVis.scale;
+    const hwS=Math.max(wHalfLong-blueR,0), hhS=Math.max(wHalfShort-blueR,0);
     for(let i=daggers.length-1;i>=0;i--){
-      if(ptInRect(daggers[i].x,daggers[i].y,wPathCx,wPathCy,wPathA,wHalfLong,wHalfShort)){
+      // 시작점(캐릭터)보다 도약 방향 뒤쪽에 중심이 있는 단검만 제외 (시작점에서 평평하게 컷, 옆쪽은 그대로)
+      if((daggers[i].x-startX)*dirx+(daggers[i].y-startY)*diry < 0) continue;
+      if(circleHitsRect(daggers[i].x,daggers[i].y,wPathCx,wPathCy,wPathA,hwS,hhS,blueR)){
         pickupDagger(i);
       }
+    }
+    // 시각화: 실효 회수 영역 = 시작점 ~ 착지+앞여유, 폭은 기존 그대로 (뒤쪽만 시작점에서 평평하게 컷)
+    if(showWViz){
+      const fX=P.x+dirx*frontMargin, fY=P.y+diry*frontMargin;
+      effects.push({type:'rect',x:(startX+fX)/2,y:(startY+fY)/2,a:wPathA,len:wPathLen+frontMargin,w:wHalfShort*2,col:'#ffaa33',t:0,mt:48});
+    }
+  }
+  if(showWViz){
+    // 비약 데미지 판정 시각화 (경로 캡슐: 폭 wWidth)
+    effects.push({type:'wdmgzone',x1:startX,y1:startY,x2:P.x,y2:P.y,t:0,mt:48});
+    // 단검 대상이면 직접 회수 반경도 표시
+    if(P.dashType!=='enemy'){
+      effects.push({type:'wrange',x:tgt.x,y:tgt.y,r:CONF.daggerPickupR,col2:1,t:0,mt:48});
     }
   }
 
@@ -839,8 +960,40 @@ function executeWTeleport(){
   // Trail effect
   effects.push({type:'wtrail',x1:startX,y1:startY,x2:P.x,y2:P.y,t:0,mt:15});
   P.dashing=false;
-  // 버퍼된 스킬 실행
-  if(skillBuffer){flushBuffer();}
+  // 0.15초 후딜 시작 — 이 동안 모든 행동 불가. 후딜 종료 시 onWPostDelayEnd()가
+  // 버퍼된 다음 스킬(2번째 W 포함) 발동 또는 착지 자동평타를 처리한다.
+  P.wPostDelay=CONF.wPostDelay;
+}
+
+// W 경로 데미지: 경로(시작→착지)에 걸친 모든 적을 적중하되,
+//  시작점에 가까운 적이 먼저, 착지점에 가까운 적이 나중에 맞도록 0.15초 안에서 시간차로 적용.
+function applyWPathDamage(startX,startY,endX,endY,knockA){
+  const dx=endX-startX, dy=endY-startY;
+  const len2=dx*dx+dy*dy;
+  let any=false;
+  for(const dm of dummies){
+    if(!dm.alive)continue;
+    if(!lineHitsCircle(startX,startY,endX,endY,dm.x,dm.y,dm.r+CONF.wWidth/2))continue;
+    any=true;
+    // 경로 진행도 t(0=시작, 1=착지)에 비례한 미세 지연
+    let t=0;
+    if(len2>0.0001){ t=((dm.x-startX)*dx+(dm.y-startY)*dy)/len2; t=Math.max(0,Math.min(1,t)); }
+    const delay=t*CONF.wPostDelay;
+    if(delay<=0.0001){
+      hitDummy(dm,CONF.wDmg,knockA,true);
+    } else {
+      const target=dm;
+      schedule(delay,()=>{ if(target.alive) hitDummy(target,CONF.wDmg,knockA,true); });
+    }
+  }
+  return any;
+}
+
+// W 후딜 종료 시: 버퍼된 다음 스킬(2번째 W 포함)이 있으면 발동, 없으면 착지 자동평타 판정.
+function onWPostDelayEnd(){
+  // 후딜 중 다른 스킬을 즉시 시전했을 수 있으므로, 그 스킬이 아직 시전 중이면 여기서 W를 흘리지 않는다.
+  // (버퍼는 그대로 두고, 시전이 끝나면 위 자동 플러시가 처리)
+  if(skillBuffer||wBuffer2){ if(!isCasting()) flushBuffer(); return; }
   // 자동평타 처리:
   // - 착지 지점이 평타 사거리 안에 적이 있으면 자동평타 (이전 명령 무관)
   // - 범위 밖이면 평타 명령(atkTarget)이 유지된 경우만 추격, E/Q/S로 끊기면 아무 것도 안 함
@@ -851,9 +1004,8 @@ function executeWTeleport(){
       const dd=dist(P,d);
       if(dd<=CONF.atkRange+d.r&&dd<bd){bd=dd;inRange=d;}
     }
-    if(inRange && !skillBuffer){
+    if(inRange){
       // W 착지 자동평타: 평타명령(atkTarget)과 별개로 wAutoTarget에 저장해 계속 평타를 치게 함
-      // 버퍼된 다음 스킬이 대기 중이면 자동평타 스킵 (어차피 곧 캔슬될 것)
       P.wAutoTarget=inRange;
       P.atkWindup=true;P.atkWindupTimer=Math.max(0,0.27/atkSpeedMult-0.2);
       P.atkWindupTarget=inRange;moveTarget=null;sfxAtk();
@@ -866,17 +1018,16 @@ function executeWTeleport(){
 // E - 협상
 // ============================================================
 function castE(){
-  if(P.eCd>0){ bufferShortCd(castE, P.eCd); return; }
+  if(P.eCd>0){ cooldownNotify('E'); return; }
   if(P.eInternalCd>0||P.locked||P.dashing||P.rCasting||P.hopping)return;
   if(P.eCasting){
     if(!cdResetMode)return;
     cancelScheduledByTag('E');P.eCasting=false;P.eCastTimer=0;P.eCanCancel=false;P.eHopActive=false;
   }
-  // 타이밍: 넉백 0.3s 후 시작, 10프레임(=10/60s) 동안 후퇴
-  const E_HOP_DELAY = 0.25;
-  const E_HOP_DUR = 10/60;
-  const E_TOTAL = E_HOP_DELAY + E_HOP_DUR; // ≈ 0.467s
-  const EW_FAST_DELAY = 21/60; // 빠른 EW: E 누른 시점 기준 21프레임 뒤 W 실행
+  // 타이밍: 0.2s 선딜(넉백 시작) → 가속+순항(1구간, 1.4m, ≈0.213s) → 감속 꼬리(2구간, 0.3m, 0.08s) → 총 1.7m
+  const E_HOP_DELAY = 0.2;
+  const E_TOTAL = E_HOP_DELAY + E_HOP1_DUR; // ≈0.413s (eCasting/조작잠금 해제, 감속 꼬리는 이후 별도 진행)
+  const EWB_CANCEL_DELAY = 20/60; // W/블링크로 E 캔슬 가능 시점: E 입력 후 20프레임 (Q는 eCanCancel 15f 유지)
   P.eInternalCd=E_TOTAL;
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
   const a=ang(P,mouse);
@@ -885,18 +1036,22 @@ function castE(){
 
   P.eCasting=true;
   P.eCastTimer=E_TOTAL;
-  P.eHopTimer=0;
+  P.eHopElapsed=0;P.eHopDone=0;
   P.eCanCancel=false;
   P.eHopA=a;
   P.eHopActive=false;
+  P.eHop2Active=false;P.eHop2Elapsed=0;P.eHop2Done=0;
+  P.ewbCancelReady=false;
+  P.eMoveLockTimer=0.8;   // E 입력 후 0.8초까지 이동 명령 무시(넉백 모션은 ~0.49s에 끝나도 이동은 잠금, 선입력은 가능)
   moveTarget=null;
   P.atkTarget=null;P.wAutoTarget=null;
-  schedule(E_HOP_DELAY,()=>{P.eCanCancel=true;},'E'); // 넉백 시작 시점에 캔슬 가능
-  // 빠른 EW: E 누른 시점 기준 20프레임 뒤, 버퍼된 W가 있으면 E 캔슬 후 즉시 실행
-  schedule(EW_FAST_DELAY,()=>{
-    if(skillBuffer===castW){
-      cancelScheduledByTag('E');
-      P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eCastTimer=0;P.eHopTimer=0;
+  schedule(E_HOP_DELAY,()=>{P.eCanCancel=true;},'E'); // 넉백 시작 시점에 캔슬 가능(Q/R)
+  // W/블링크 캔슬: E 입력 후 20프레임부터 가능. 버퍼돼 있으면 발사.
+  // E 캔슬은 여기서 미리 하지 않고 castW(사거리 내 대상이 있을 때만)·castBlink가 직접 수행한다.
+  // → 맨땅 W(대상 없음)나 사거리 밖 W에서는 넉백이 끊기지 않고 그대로 진행됨.
+  schedule(EWB_CANCEL_DELAY,()=>{
+    P.ewbCancelReady=true;
+    if(skillBuffer===castW||skillBuffer===castBlink){
       flushBuffer();
     }
   },'E');
@@ -923,26 +1078,24 @@ function castE(){
         d.eMark=true;d.eMarkTimer=CONF.eMarkDur;
         sfxEdaggerHit();
         eProj.eHit=true;
-        log('협상 적중! 슬로우 + 마크 부여');
         const behind=a;
         const edgX=d.x+Math.cos(behind)*1.2*PX, edgY=d.y+Math.sin(behind)*1.2*PX;
         effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000});
-        schedule(CONF.eDaggerDelay,()=>{spawnDagger(edgX,edgY);log('협상 단검 생성 (적 뒤)');});
+        schedule(CONF.eDaggerDelay,()=>{spawnDagger(edgX,edgY);});
       }
     }
     if(!eProj.eHit) projectiles.push(eProj);
-    if(P.eCasting){P.eHopActive=true;P.eHopTimer=E_HOP_DUR;}
+    if(P.eCasting){P.eHopActive=true;P.eHopElapsed=0;P.eHopDone=0;}
   },'E');
 
   P.eCd=applyCdr(CONF.eCd);
-  log('협상 시전');
 }
 
 // ============================================================
 // R - 무자비 (선딜 0.3초 → X자 단검 투척 → 후딜 0.6초)
 // ============================================================
 function castR(){
-  if(P.rCd>0){ bufferShortCd(castR, P.rCd); return; }
+  if(P.rCd>0){ cooldownNotify('R'); return; }
   if(P.rInternalCd>0||P.locked||P.dashing||P.hopping)return;
   if(P.rCasting){
     if(!cdResetMode)return;
@@ -960,7 +1113,6 @@ function castR(){
   const preDelay=0.2;   // 선딜 0.2초
   const postDelay=0.6;  // 후딜 0.6초
 
-  log('무자비 시전...');
 
   // 선딜 0.2초 후 → 내부 AoE + X자 단검 순차 투척
   schedule(preDelay,()=>{
@@ -993,41 +1145,61 @@ function castR(){
 
     xDirs.forEach((dir,i)=>{
       schedule(i*0.1,()=>{
-        const dx=Math.cos(dir.a), dy=Math.sin(dir.a);
+        // 단검 위치 = 피해 경로 끝 = 캐릭터로부터 3.9m 방사 (4개 등거리, W-연계 보존)
+        const wAng=dir.a;
+        let dgX=castX+Math.cos(wAng)*CONF.rDaggerPathLen;
+        let dgY=castY+Math.sin(wAng)*CONF.rDaggerPathLen;
 
         // 경로상 피해 (이미 맞은 대상 제외)
         for(const d of dummies){
           if(!d.alive||rHitSet.has(d))continue;
-          const ex=castX+dx*CONF.rDaggerPathLen, ey=castY+dy*CONF.rDaggerPathLen;
-          if(lineHitsCircle(castX,castY,ex,ey,d.x,d.y,d.r+CONF.rDaggerPathW/2)){
-            hitDummy(d,CONF.rDaggerDmg,dir.a,false);
+          if(lineHitsCircle(castX,castY,dgX,dgY,d.x,d.y,d.r+CONF.rDaggerPathW/2)){
+            hitDummy(d,CONF.rDaggerDmg,wAng,false);
             rAnyHit=true;
             rHitAll.add(d);
           }
         }
 
-        // 단검 배치 (벽 차단 시 발밑)
-        let dgX=castX+dx*CONF.rDaggerPathLen, dgY=castY+dy*CONF.rDaggerPathLen;
+        // 벽 차단 시 발밑 방향으로
         if(wallBlock(dgX,dgY,5)){
-          dgX=castX+dx*15;dgY=castY+dy*15;
-          log(`${dir.name} 벽 차단 → 발밑!`);
+          dgX=castX+Math.cos(wAng)*15;dgY=castY+Math.sin(wAng)*15;
         }
+        // R 방향별 사용자 오프셋
+        dgX += rDagVis[i].dx;
+        dgY += rDagVis[i].dy;
         spawnDagger(dgX,dgY);
+        // 방금 추가된 단검에 R 방향 인덱스 태그 — 렌더링에서 개별 찌부 적용
+        daggers[daggers.length-1].rIdx = i;
 
         // 슬래시 이펙트
         effects.push({type:'rslash',x1:castX,y1:castY,
-          x2:castX+dx*CONF.rDaggerPathLen,y2:castY+dy*CONF.rDaggerPathLen,
+          x2:dgX,y2:dgY,
           t:0,mt:20,w:CONF.rDaggerPathW});
 
         // 마지막 단검 배치 후 R hit/miss 사운드
       },'R');
     });
 
-    log('단검 투척 완료! (후딜 0.6초)');
 
     // 후딜 0.6초 후 시전 종료
     schedule(postDelay,()=>{
       P.rCasting=false;
+      // W가 (발밑 회수와 무관하게) R 종료 시점에 원래 시전 가능했는지 기록.
+      //  쿨초모드: applyCdr=0이라 EW 후에도 W쿨=0 → 준비됨.  비쿨초모드: EW로 쓴 W가 쿨중 → 준비 안 됨.
+      const _wWasReady = (P.wCd<=0) && !(cdResetMode && P.wInternalCd>0);
+      // R 시전 중 캐릭터 발밑에 떨어진 단검(E단검 등) 회수 (R 중엔 막혀 있던 것).
+      //  버퍼된 W가 비약으로 캐릭터를 옮기기 전에 먼저 줍는다. (발밑=파란 원에 닿은 단검만)
+      const _nDagBefore=daggers.length;
+      checkDaggerPickup();
+      const _footPicked = daggers.length<_nDagBefore;
+      if(_wWasReady){
+        // W가 준비돼 있었으면(쿨초모드 등) 선입력 W 발동 → 발밑 회수로 생긴 0.05쿨이 막지 않도록 해제
+        if(_footPicked){ P.wCd=0; P.wInternalCd=0; }
+      } else if(skillBuffer===castW){
+        // W가 원래 쿨 중이었으면 선입력 W는 발동하지 않음 (발밑단검만 회수). "준비 안 됨"도 안 뜨게 버퍼 비움(2칸 모두).
+        skillBuffer=null; skillBufferMouse=null;
+        wBuffer2=null; wBuffer2Mouse=null;
+      }
       // R 적중 시 자동평타 (W 착지 자동평타와 동일 방식, 평타명령과 별개)
       if(rAnyHit){
         let near=null, bd=Infinity;
@@ -1038,8 +1210,10 @@ function castR(){
         }
         if(near) P.wAutoTarget=near;
       }
-      log('무자비 시전 완료');
-      flushBuffer();
+      flushBuffer(); // 선입력 W 발동
+      // 발밑단검을 회수했다면(쿨초), 이어진 W가 적에게 비약하며 건 풀 쿨(wCd)에 그 쿨초가 덮이지 않도록 보존.
+      //  (내부 쿨 wInternalCd=0.3은 그대로 둔다 — 사용자 요청)
+      if(_footPicked && P.wCd>0.05){ P.wCd=0.05; }
     },'R');
   },'R');
 }
@@ -1055,15 +1229,21 @@ function hitDummy(d, dmg, dir, grantStack){
   effects.push({type:'dmg',x:d.x,y:d.y-d.r-15,t:0,mt:40,val:dmg});
   shake.t=3;shake.m=2;
   if(grantStack)addStack();
-  if(P.dActive){P.dActive=false;P.dTimer=0;playSfx('cloakend');log('공격 적중 → 은신 해제');}
+  if(P.dActive){P.dActive=false;P.dTimer=0;playSfx('cloakend');}
 }
 
 // ============================================================
 // BLINK (점멸)
 // ============================================================
 function castBlink(){
-  if(P.blinkCd>0){ bufferShortCd(castBlink, P.blinkCd); return; }
+  if(P.blinkCd>0){ cooldownNotify('F'); return; }
   if(isCasting())return;
+  // E 넉백 도중/직후(감속 꼬리 포함) 점멸 시 넉백을 확실히 캔슬 → 점멸 위치가 넉백에 끌려가지 않도록
+  if(P.eCasting||P.eHopActive||P.eHop2Active){
+    cancelScheduledByTag('E');
+    P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eHop2Active=false;
+    P.eCastTimer=0;P.eHopTimer=0;P.eMoveLockTimer=0;P._eCastId++;
+  }
   sfxBlink();
   cancelAttack();
   P.atkWindup=false;P.atkWindupTarget=null;
@@ -1090,7 +1270,6 @@ function castBlink(){
   }
   moveTarget=null;
   P.blinkCd=applyCdr(CONF.blinkCd);
-  log('점멸!');
 }
 
 // ============================================================
@@ -1100,6 +1279,7 @@ let dPending=null;
 let dPendingInstant=false; // E 중 눌렀을 때 범위 내였는지 기록 (E 종료 후 범위 재검사 없이 발동)
 function executeD(tgt){
   if(P.eCasting){P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P._eCastId++;}
+  P.eHop2Active=false;P.eMoveLockTimer=0;
   P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();
   const behindA=-Math.PI/3;
   P.x=tgt.x+Math.cos(behindA)*80;
@@ -1116,10 +1296,10 @@ function executeD(tgt){
   playSfx('daggerskill2');
   // D2 이후 자동평타
   if(tgt.alive){P.atkWindup=true;P.atkWindupTimer=0.167/atkSpeedMult;P.atkWindupTarget=tgt;P.atkTarget=tgt;sfxAtk();}
-  log('은신 순간이동!');
 }
 function checkDPending(){
   if(!dPending||P.dPhase!==1)return;
+  if(P.wPostDelay>0)return;
   if(!dPending.alive){dPending=null;return;}
   // E 넉백 중엔 대기 (D2는 E 딜레이를 캔슬하지 못함)
   if(P.eCasting)return;
@@ -1131,7 +1311,7 @@ function checkDPending(){
   }
 }
 function castD(){
-  if(P.dCd>0)return;
+  if(P.dCd>0){ cooldownNotify('D'); return; }
   if(P.dPhase===0){
     // 1차: 은신 시작
     P.dActive=true;
@@ -1139,7 +1319,6 @@ function castD(){
     P.dRecastTimer=CONF.dRecastWindow;
     P.dPhase=1;
     playSfx('daggerskill');
-    log('은신! 이동속도 +25%');
   } else if(P.dPhase===1){
     // 2차: 적 뒤로 순간이동
     let bestTgt=null, bestD=Infinity;
@@ -1148,20 +1327,18 @@ function castD(){
       const dm=dist(mouse,d);
       if(dm<d.r+30 && dm<bestD){bestD=dm;bestTgt=d;}
     }
-    if(!bestTgt){log('D: 대상 없음');return;}
+    if(!bestTgt){return;}
     const dd=dist(P,bestTgt);
     // E 넉백 중이면 D2는 E 캔슬 없이 대기 → 누를 때 범위 안이었다면 E 종료 후 범위 재검사 없이 발동
     if(P.eCasting){
       dPending=bestTgt;
       dPendingInstant=(dd<=CONF.atkRange+bestTgt.r);
-      log('D: E 딜레이 대기 중...');
     } else if(dd<=CONF.atkRange+bestTgt.r){
       executeD(bestTgt);
     } else {
       // 사거리 밖 → 대상 쪽으로 이동
       dPending=bestTgt;
       moveTarget={x:bestTgt.x,y:bestTgt.y};
-      log('D: 대상 접근 중...');
     }
   }
 }
@@ -1197,10 +1374,23 @@ function update(rdt){
   if(P.rInternalCd>0)P.rInternalCd-=tick;
   if(P.blinkCd>0)P.blinkCd-=tick;
   if(P.dCd>0)P.dCd-=tick;
+  // W 후딜(0.15초): 만료 시 버퍼된 다음 스킬(2번째 W 포함) 발동 또는 착지 자동평타 판정
+  if(P.wPostDelay>0){
+    P.wPostDelay-=tick;
+    if(P.wPostDelay<=0){ P.wPostDelay=0; onWPostDelayEnd(); }
+  }
   // 쿨다운 만료 시 선입력 버퍼 자동 플러시 (버퍼된 fn이 자체적으로 CD 재검사)
-  if(skillBuffer && !isCasting() && !P.atkWindup && !P.atkPending) flushBuffer();
-  if(P.dTimer>0){P.dTimer-=tick;if(P.dTimer<=0){P.dActive=false;playSfx('cloakend');log('은신 해제');}}
-  if(P.dRecastTimer>0){P.dRecastTimer-=tick;if(P.dRecastTimer<=0&&P.dPhase===1){P.dPhase=0;P.dCd=cdResetMode?0:CONF.dCd;log('은신 재사용 시간 만료');}}
+  // 단, E 시전 중 W/블링크는 20프레임(ewbCancelReady) 전까지 자동 flush 금지 → 전용 스케줄에서만 캔슬
+  // W 후딜 중에는 자동 플러시 금지 → 후딜 중 버퍼된 W는 onWPostDelayEnd()가 후딜 종료 시 발동
+  if((skillBuffer||wBuffer2) && !isCasting() && P.wPostDelay<=0 && !P.atkWindup && !P.atkPending){
+    if(P.eCasting && !P.ewbCancelReady && (skillBuffer===castW||skillBuffer===castBlink)){
+      // 대기: 20프레임 전용 스케줄이 처리
+    } else {
+      flushBuffer();
+    }
+  }
+  if(P.dTimer>0){P.dTimer-=tick;if(P.dTimer<=0){P.dActive=false;playSfx('cloakend');}}
+  if(P.dRecastTimer>0){P.dRecastTimer-=tick;if(P.dRecastTimer<=0&&P.dPhase===1){P.dPhase=0;P.dCd=cdResetMode?0:CONF.dCd;}}
   if(P.lockTimer>0){P.lockTimer-=tick;if(P.lockTimer<=0){P.locked=false;flushBuffer();}}
   if(P.swinging){P.swingTimer-=tick;if(P.swingTimer<=0)P.swinging=false;}
   // 평타 적중 대기 (0.2초 후 적중, 이동 시 취소)
@@ -1221,7 +1411,7 @@ function update(rdt){
   if(P.stackTimer>0){
     P.stackTimer-=tick;
     if(P.stackTimer<=0&&P.stacks>0){P.stacks=0;P.enhancedAA=false;updateStackUI();
-      document.getElementById('stack-full').style.display='none';log('스택 시간 만료')}
+      document.getElementById('stack-full').style.display='none';}
     else if(P.stacks>0&&P.stacks<CONF.stackMax){
       const pct=Math.max(0,P.stackTimer/CONF.stackDur)*100;
       document.getElementById('stack-indicator').style.setProperty('--p',pct+'%');
@@ -1230,29 +1420,64 @@ function update(rdt){
   if(P.qEnhTimer>0){
     P.qEnhTimer-=tick;
     if(P.qEnhTimer<=0&&P.qEnhanced){P.qEnhanced=false;
-      document.getElementById('bQ').classList.remove('enhanced');document.getElementById('qIcon').src='icon/shoqfix.png';log('강화Q 만료')}
+      document.getElementById('bQ').classList.remove('enhanced');document.getElementById('qIcon').src='icon/shoqfix.png';}
   }
 
   // Q casting (시전 중 이동 불가)
   if(P.qCasting){
     P.qCastTimer-=tick;
-    if(P.qCastTimer<=0){P.qCasting=false;flushBuffer();}
+    if(P.qCastTimer<=0){
+      P.qCasting=false;
+      // EQ/EQ2: Q 시전이 끝나면 남아있는 E 넉백(순항 잔여 + 감속 꼬리)이 이동을 막지 않도록 정리한다.
+      // (가속+순항으로 이미 대부분 밀려난 상태. flushBuffer 전에 처리해야 QE의 버퍼된 E를 지우지 않음)
+      if(P.eCasting||P.eHopActive||P.eHop2Active||P.eMoveLockTimer>0){
+        cancelScheduledByTag('E');
+        P.eCasting=false;P.eCanCancel=false;P.eHopActive=false;P.eHop2Active=false;P.eCastTimer=0;P.eHopTimer=0;P.eMoveLockTimer=0;
+      }
+      flushBuffer();
+    }
   }
 
-  // E casting: 0.3s 선딜 → 10프레임 후퇴
+  // E 이동 잠금 타이머 (넉백 모션과 별개로, E 입력 후 0.8초까지 이동만 차단)
+  if(P.eMoveLockTimer>0)P.eMoveLockTimer-=tick;
+  // E casting: 0.2s 선딜 → 1구간 가속(ease-in)+순항(등속) → 2구간 감속 꼬리(ease-out), 총 1.7m
   if(P.eCasting){
     P.eCastTimer-=tick;
     if(P.eHopActive){
-      P.eHopTimer-=tick;
-      if(P.eHopTimer<=0){P.eHopActive=false;}
-      else{
-        const hopSpeed=7.5*PX*tick;
-        const nx=P.x-Math.cos(P.eHopA)*hopSpeed;
-        const ny=P.y-Math.sin(P.eHopA)*hopSpeed;
-        if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny}
+      P.eHopElapsed+=tick;
+      let target;
+      if(P.eHopElapsed<=E_HOP_ACC_DUR){
+        // 가속: 0 → 정점, ease-in (위치 = 거리·p²)
+        const p=P.eHopElapsed/E_HOP_ACC_DUR;
+        target=E_HOP_ACC_DIST*p*p;
+      } else {
+        // 순항: 정점 속도 등속
+        target=E_HOP_ACC_DIST + EHOP_PEAK*PX*(P.eHopElapsed-E_HOP_ACC_DUR);
+      }
+      if(target>E_HOP1_DIST) target=E_HOP1_DIST;
+      const delta=target-P.eHopDone;P.eHopDone=target;
+      const nx=P.x-Math.cos(P.eHopA)*delta;
+      const ny=P.y-Math.sin(P.eHopA)*delta;
+      if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny}
+      if(P.eHopElapsed>=E_HOP1_DUR){
+        P.eHopActive=false;
+        // 1구간(가속+순항) 종료 → 2구간(감속 꼬리) 시작 (정점 속도에서 연속)
+        P.eHop2Active=true;P.eHop2Elapsed=0;P.eHop2Done=0;
       }
     }
     if(P.eCastTimer<=0){P.eCasting=false;P.eCanCancel=false;P.eHopActive=false}
+  }
+  // E 넉백 2구간(감속 꼬리): eCasting 종료 후에도 독립적으로 진행, 정점 7.5m/s에서 0까지 ease-out으로 0.3m 후퇴
+  if(P.eHop2Active){
+    P.eHop2Elapsed+=tick;
+    const p=Math.min(P.eHop2Elapsed/E_HOP2_DUR,1);
+    const eased=1-(1-p)*(1-p);              // ease-out: 빠르게 시작해 점점 감속
+    const target=E_HOP2_DIST*eased;
+    const delta=target-P.eHop2Done;P.eHop2Done=target;
+    const nx=P.x-Math.cos(P.eHopA)*delta;
+    const ny=P.y-Math.sin(P.eHopA)*delta;
+    if(!wallBlock(nx,ny,P.r)){P.x=nx;P.y=ny}
+    if(p>=1)P.eHop2Active=false;
   }
 
   // R casting
@@ -1277,7 +1502,7 @@ function update(rdt){
   processAutoAttack();
 
   // Movement (이동은 대시/시전/Q시전/E시전 중 차단)
-  if(!P.dashing&&!P.rCasting&&!P.hopping&&!P.eCasting&&!P.qCasting&&moveTarget){
+  if(!P.dashing&&!P.rCasting&&!P.hopping&&!P.eCasting&&!P.eHop2Active&&P.eMoveLockTimer<=0&&!P.qCasting&&P.wPostDelay<=0&&moveTarget){
     if(P.atkPending) cancelAttack(); // 이동 시 평타 취소
     const d=dist(P,moveTarget);
     if(d<4){moveTarget=null}
@@ -1317,14 +1542,12 @@ function update(rdt){
           d.eMark=true;d.eMarkTimer=CONF.eMarkDur;
           sfxEdaggerHit();
           p.eHit=true;
-          log('협상 적중! 슬로우 + 마크 부여');
           // Dagger behind enemy (delayed)
           const behind=Math.atan2(p.vy,p.vx);
           const edgX=d.x+Math.cos(behind)*1.2*PX, edgY=d.y+Math.sin(behind)*1.2*PX;
-          effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000}); // 단검 생성 시 제거
+          effects.push({type:'dagdrop',x:edgX,y:edgY,sx:d.x,sy:d.y,t:0,mt:9999,spawnTime:performance.now()+CONF.eDaggerDelay*1000});
           schedule(CONF.eDaggerDelay,()=>{
             spawnDagger(edgX,edgY);
-            log('협상 단검 생성 (적 뒤)');
           });
           p.life=0;
           break;
@@ -1401,8 +1624,13 @@ function draw(){
   ctx.translate(shake.x,shake.y);
   ctx.clearRect(-10,-10,canvas.width+20,canvas.height+20);
 
-  // Grid (오프스크린 캐시)
-  ctx.drawImage(gridCanvas, 0, 0);
+  // Grid (전체 캔버스 절차적 렌더링)
+  ctx.strokeStyle = '#1a1a2a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= canvas.width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
+  for (let y = 0; y <= canvas.height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
+  ctx.stroke();
 
 
   // Move target
@@ -1416,15 +1644,36 @@ function draw(){
   // ---- DAGGERS on field ----
   for(const dg of daggers){
     const pulse=Math.sin(dg.age*4)*.15+.85;
-    // W 사거리 원 (스트로크만)
-    ctx.strokeStyle='rgba(60,140,255,.08)';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.arc(dg.x,dg.y,CONF.wRange,0,Math.PI*2);ctx.stroke();
-    // 원형 범위 (파란색, 굵은 스트로크)
-    ctx.strokeStyle='rgba(60,130,255,.35)';ctx.lineWidth=2.5;
-    ctx.beginPath();ctx.arc(dg.x,dg.y,CONF.daggerPickupR,0,Math.PI*2);ctx.stroke();
-    // 단검 (빨간색)
     ctx.save();
     ctx.translate(dg.x,dg.y);
+    // W 사거리 원 (얇은 파란색 타원) — R 단검 방향별 설정. 비R 단검은 좌하(0) 설정을 사용
+    {
+      const wv = wRingVis[(dg.rIdx!=null)?dg.rIdx:0];
+      const wrx = CONF.wRange*wv.scale;
+      const wry = wrx*wv.flatten;
+      ctx.strokeStyle='rgba(60,140,255,.08)';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.ellipse(0,0, wrx, wry, wv.angle*Math.PI/180, 0, Math.PI*2);ctx.stroke();
+    }
+    const _sq = (dg.rIdx!=null) ? rDagVis[dg.rIdx].squish : dagVis.squish;
+    ctx.scale(dagVis.scale, dagVis.scale*_sq);
+    // 원형 범위 (파란색)
+    ctx.strokeStyle='rgba(60,130,255,.35)';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(0,0,CONF.daggerPickupR,0,Math.PI*2);ctx.stroke();
+    // 수직 빔 (원작 비콘)
+    {
+      const beamH=100;
+      const bg=ctx.createLinearGradient(0,0,0,-beamH);
+      bg.addColorStop(0,`rgba(255,60,60,${0.75*pulse})`);
+      bg.addColorStop(0.5,`rgba(255,40,40,${0.35*pulse})`);
+      bg.addColorStop(1,'rgba(255,40,40,0)');
+      ctx.fillStyle=bg;
+      ctx.shadowColor='#f33';ctx.shadowBlur=10;
+      ctx.fillRect(-3,-beamH,6,beamH);
+      ctx.fillStyle=`rgba(255,90,90,${0.5*pulse})`;
+      ctx.beginPath();ctx.ellipse(0,0,7,3,0,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+    // 단검 마커 (빨간색)
     ctx.rotate(dg.age*2);
     ctx.fillStyle=`rgba(220,50,50,${pulse})`;
     ctx.shadowColor='#f44';ctx.shadowBlur=8;
@@ -1495,6 +1744,7 @@ function draw(){
 
   // ---- PLAYER ----
   const px=P.x, py=P.y;
+  ctx.save();
 
   // R casting indicator
   if(P.rCasting){
@@ -1503,9 +1753,9 @@ function draw(){
   // W range (when hovering W key? always subtle)
   // Attack range (A모드 시 강조 표시)
   if(aMode){
-    ctx.strokeStyle='rgba(255,100,100,.4)';ctx.lineWidth=2;
+    ctx.strokeStyle='rgba(80,160,255,.5)';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(px,py,CONF.atkRange,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='rgba(255,100,100,.06)';
+    ctx.fillStyle='rgba(80,160,255,.08)';
     ctx.beginPath();ctx.arc(px,py,CONF.atkRange,0,Math.PI*2);ctx.fill();
   } else if(P.atkCd<=0&&!P.dashing&&!P.rCasting){
     ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;
@@ -1591,6 +1841,37 @@ function draw(){
 
   // Stack orbs around player (deprecated — stack UI는 #stack-indicator로 대체)
 
+  // ---- 패시브 스택 바 (체력바 아래 위치, 원작 ER 스타일 5분할) ----
+  {
+    const stacks = P.stacks, smax = CONF.stackMax;
+    const barW = 78, barH = 6, gap = 1.5;
+    const segW = (barW - gap*(smax-1)) / smax;
+    const bx = px - barW/2;
+    const by = py - P.r - 16;
+    const isMax = stacks >= smax;
+    // 외곽 박스 (살짝 어두운 배경 + 1px 테두리)
+    ctx.fillStyle='rgba(0,0,0,0.65)';
+    ctx.fillRect(bx-1.5, by-1.5, barW+3, barH+3);
+    // 5분할 세그먼트
+    for(let i=0;i<smax;i++){
+      const sx = bx + i*(segW+gap);
+      if(i<stacks){
+        ctx.fillStyle = isMax ? '#e63232' : '#f2f2f2';
+      } else {
+        ctx.fillStyle = 'rgba(50,50,55,0.85)';
+      }
+      ctx.fillRect(sx, by, segW, barH);
+    }
+    // MAX 상태 강조 글로우
+    if(isMax){
+      ctx.shadowColor='#ff3030';ctx.shadowBlur=8;
+      ctx.strokeStyle='rgba(255,80,80,0.85)';ctx.lineWidth=1;
+      ctx.strokeRect(bx-1.5, by-1.5, barW+3, barH+3);
+      ctx.shadowBlur=0;
+    }
+  }
+
+  ctx.restore();
   ctx.globalAlpha=1;
 
   // ---- EFFECTS ----
@@ -1609,7 +1890,8 @@ function draw(){
       ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
     }else if(e.type==='rect'){
       const r=parseInt(e.col.slice(1,3),16),g=parseInt(e.col.slice(3,5),16),b=parseInt(e.col.slice(5,7),16);
-      ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.a);
+      ctx.save();
+      ctx.translate(e.x,e.y);ctx.rotate(e.a);
       ctx.fillStyle=`rgba(${r},${g},${b},${a*.3})`;
       ctx.fillRect(-e.len/2,-e.w/2,e.len,e.w);
       ctx.strokeStyle=`rgba(${r},${g},${b},${a*.7})`;ctx.lineWidth=3;
@@ -1636,7 +1918,6 @@ function draw(){
     }else if(e.type==='dagdrop'){
       // 적에서 천천히 나와 착지점에 도달
       const now=performance.now();
-      const totalMs=e.spawnTime-(e.spawnTime-600); // 항상 600ms
       const rp=Math.min((now-(e.spawnTime-600))/600,1);
       const tp=Math.min(rp/0.8,1); // 80% 시간에 도착
       const ease=1-Math.pow(1-tp,2);
@@ -1700,29 +1981,62 @@ function draw(){
       ctx.beginPath();ctx.arc(e.x,e.y,e.r*(0.6+p*.4),0,Math.PI*2);ctx.stroke();
       ctx.fillStyle=`rgba(162,22,67,${a*.1})`;
       ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
+    }else if(e.type==='wrange'){
+      // 단검 직접 회수 반경(주황) 시각화
+      const col = e.col2 ? [255,170,51] : [80,200,140];
+      ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${a*.08})`;
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${a*.8})`;ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.stroke();
+    }else if(e.type==='wdmgzone'){
+      // 비약 데미지 판정 캡슐 (경로 ± wWidth/2, 빨강)
+      ctx.lineCap='round';
+      ctx.strokeStyle=`rgba(255,70,70,${a*.13})`;ctx.lineWidth=CONF.wWidth;
+      ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
+      // 테두리(양옆 평행선 + 끝 반원)
+      const dx=e.x2-e.x1, dy=e.y2-e.y1, len=Math.hypot(dx,dy);
+      const hw=CONF.wWidth/2;
+      ctx.strokeStyle=`rgba(255,70,70,${a*.8})`;ctx.lineWidth=2;
+      if(len>0.001){
+        const nx=-dy/len*hw, ny=dx/len*hw;        // 경로 수직 오프셋
+        const a1=Math.atan2(dy,dx);
+        ctx.beginPath();
+        ctx.moveTo(e.x1+nx,e.y1+ny);ctx.lineTo(e.x2+nx,e.y2+ny);
+        ctx.moveTo(e.x1-nx,e.y1-ny);ctx.lineTo(e.x2-nx,e.y2-ny);
+        ctx.stroke();
+        ctx.beginPath();ctx.arc(e.x2,e.y2,hw,a1-Math.PI/2,a1+Math.PI/2);ctx.stroke();        // 착지쪽 캡
+        ctx.beginPath();ctx.arc(e.x1,e.y1,hw,a1+Math.PI/2,a1+Math.PI*1.5);ctx.stroke();       // 시작쪽 캡
+      }else{
+        ctx.beginPath();ctx.arc(e.x1,e.y1,hw,0,Math.PI*2);ctx.stroke();
+      }
     }
   }
 
   // W target highlight (show what W would target)
   if(P.wCd<=0&&!P.dashing&&!P.rCasting){
     // Find best W target near mouse
-    let best=null,bd=Infinity,btype='';
+    let best=null,bd=Infinity,bvx=0,bvy=0;
     for(const d of dummies){
       if(!d.alive)continue;
-      const dm=dist(mouse,d),dp=dist(P,d);
-      if(dm<d.r+30&&dp<=CONF.wRange&&dm<bd){bd=dm;best=d;btype='enemy'}
+      const dm=Math.hypot(mouse.x-d.x,mouse.y-d.y);
+      const dp=dist(P,d);
+      if(dm<d.r+30&&dp<=CONF.wRange&&dm<bd){
+        bd=dm;best=d;bvx=d.x;bvy=d.y;
+      }
     }
     for(const dg of daggers){
-      const dm=dist(mouse,dg),dp=dist(P,dg);
-      if(dm<30&&dp<=CONF.wRange&&dm<bd){bd=dm;best=dg;btype='dagger'}
+      const dm=Math.hypot(mouse.x-dg.x,mouse.y-dg.y);
+      const dp=dist(P,dg);
+      if(dm<30&&dp<=CONF.wRange&&dm<bd){
+        bd=dm;best=dg;bvx=dg.x;bvy=dg.y;
+      }
     }
     if(best){
       ctx.strokeStyle='rgba(80,200,255,.25)';ctx.lineWidth=1;ctx.setLineDash([4,3]);
-      ctx.beginPath();ctx.arc(best.x,best.y,20,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.arc(bvx,bvy,20,0,Math.PI*2);ctx.stroke();
       ctx.setLineDash([]);
-      // Line from player
       ctx.strokeStyle='rgba(80,200,255,.1)';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(best.x,best.y);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(P.x,P.y);ctx.lineTo(bvx,bvy);ctx.stroke();
     }
   }
 
@@ -1758,9 +2072,16 @@ function loop(now){
 let rightDown=false;
 
 const cursorEl=document.getElementById('custom-cursor');
+let customCursor=true; // 커스텀 커서 사용 여부 (기본 on)
+document.getElementById('cursor-chk').addEventListener('change',e=>{
+  customCursor=e.target.checked;
+  canvas.style.cursor=customCursor?'none':'default'; // off면 기본 시스템 커서 표시
+  if(!customCursor) cursorEl.style.display='none';
+  log(`커스텀 커서 ${customCursor?'ON':'OFF'}`);
+});
 document.addEventListener('mousemove',e=>{
   const onCanvas=e.target===canvas;
-  cursorEl.style.display=onCanvas?'block':'none';
+  cursorEl.style.display=(customCursor&&onCanvas)?'block':'none';
   cursorEl.style.transform=`translate(${e.clientX-CURSOR_W/2}px,${e.clientY-CURSOR_H/2}px)`;
   // 변형 전 레이아웃 중심을 래퍼에서 구함 (transform은 canvas에만 적용)
   const wrap=document.getElementById('canvas-wrap');
@@ -1788,7 +2109,9 @@ document.addEventListener('mousemove',e=>{
   // CSS 픽셀 → 캔버스 버퍼 픽셀 변환 (해상도 독립)
   const sx = canvas.width / r.width, sy = canvas.height / r.height;
   xs *= sx; ys *= sy;
-  mouse.x=xs+canvas.width/2;mouse.y=ys+canvas.height/2;
+  mouse.x = xs + canvas.width/2;
+  mouse.y = ys + canvas.height/2;
+  liveMouse.x = mouse.x; liveMouse.y = mouse.y; // 실시간 커서 추적 (flush 중 mouse가 덮여도 보존)
   if(rightDown) handleRightClick(mouse.x,mouse.y);
 });
 document.addEventListener('mouseleave',()=>cursorEl.style.display='none');
@@ -1796,8 +2119,8 @@ document.addEventListener('mouseleave',()=>cursorEl.style.display='none');
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 function handleRightClick(mx,my){
-  if(P.rCasting)return;
-  if(P.eCasting)return; // E 시전 중 이동 차단 (스킬만 허용)
+  // R/E 넉백 시전 중에도 이동명령을 받아 moveTarget만 설정해두고, 시전이 끝나면 이행한다 (Q/Q2와 동일)
+  // 실제 이동 적용은 update 루프(1333행)에서 !rCasting && !eCasting 게이트로 시전 종료 후 처리됨
   P.locked=false;P.lockTimer=0;
   aMode=false;
 
@@ -1835,7 +2158,7 @@ canvas.addEventListener('mousedown',e=>{
         const dd=dist(mouse,d);
         if(dd<bd){bd=dd;best=d}
       }
-      if(best){P.atkTarget=best;moveTarget=null;log('A+클릭 타겟 지정')}
+      if(best){P.atkTarget=best;moveTarget=null;}
     } else {
       doBasicAttack();
     }
@@ -1849,16 +2172,27 @@ canvas.addEventListener('mouseup',e=>{
 document.addEventListener('keydown',e=>{
   if(e.repeat)return; // 키 홀드 시 자동 반복 입력 무시
   const k=e.key.toLowerCase();
+  // 다른(비-W) 스킬 입력은 쌓여있던 2번째 W 선입력을 취소한다.
+  if(k==='q'||k==='e'||k==='r'||k==='d'||k==='f'||k==='s'){ wBuffer2=null; wBuffer2Mouse=null; }
   if(k==='q')tryOrBuffer(castQ);
   else if(k==='w'){
-    if(P.qCasting){skillBuffer=castW;skillBufferMouse={x:mouse.x,y:mouse.y};} // Q 시전 중 W: 버퍼만 (Q 캔슬 불가)
-    else if(P.eCasting){skillBuffer=castW;skillBufferMouse={x:mouse.x,y:mouse.y};} // E 도중 W: 항상 버퍼 (빠른 EW는 castE의 20프레임 스케줄, 느린 EW는 즉시 캔슬 경로)
+    // W는 2회까지 선입력 가능. 시전 중(R/대시/Q/E)이거나 W 후딜 중이면 독립 2칸 버퍼에 쌓고, 아니면 즉시 시전.
+    // (다른 스킬은 후딜 중 즉시 나가지만, W만은 후딜 종료 후 선입력으로 발동)
+    if(isCasting()||P.qCasting||P.eCasting||P.wPostDelay>0) bufferW();
     else tryOrBuffer(castW);
   }
   else if(k==='e')tryOrBuffer(castE);
   else if(k==='r')tryOrBuffer(castR);
-  else if(k==='d')castD();
-  else if(k==='f')tryOrBuffer(castBlink);
+  else if(k==='d'){
+    // R 시전 중 D2(2차)는 즉시 사용 불가 → 버퍼에 넣어 R 종료 후 시전 (QWE 선입력과 동일한 로직)
+    if(P.rCasting && P.dPhase===1){ skillBuffer=castD; skillBufferMouse={x:mouse.x,y:mouse.y}; }
+    else castD();
+  }
+  else if(k==='f'){
+    // E 도중 블링크: 20프레임(ewbCancelReady) 전까진 버퍼만 → 전용 스케줄이 20f에 E 캔슬 후 발사
+    if(P.eCasting && !P.ewbCancelReady){skillBuffer=castBlink;skillBufferMouse={x:mouse.x,y:mouse.y};}
+    else tryOrBuffer(castBlink);
+  }
   else if(k==='a'){aMode=true;}
   else if(k==='s'){moveTarget=null;P.atkTarget=null;P.wAutoTarget=null;wPending=null;dPending=null;aMode=false;P.atkWindup=false;P.atkWindupTarget=null;cancelAttack();}
   else if(k==='`'){document.getElementById('cd-reset-btn').click();}
@@ -1903,6 +2237,29 @@ document.getElementById('quarter-chk').addEventListener('change',e=>{
   resize();
   log(`쿼터뷰 ${quarterView?'ON':'OFF'}`);
 });
+const showWViz=false;
+
+// ── 단검 외형 설정 (크기, Y찌부) ──
+const dagVis = { scale:0.90, squish:1.00 };
+// ── 단검 W 사거리 원(얇은 파란색 타원) 외형 — R 단검 방향별(좌하/우하/우상/좌상, rIdx 순서) ──
+//  scale  : 가로 반지름 배율 (CONF.wRange 기준)
+//  flatten: 세로/가로 비율 (1=정원, 작을수록 납작)
+//  angle  : 캔버스 공간에서의 기울기(도)
+const wRingVis = [
+  { scale:0.83, flatten:0.92, angle:-56 },  // 좌하
+  { scale:0.80, flatten:1.00, angle:180 },  // 우하
+  { scale:0.79, flatten:0.91, angle:-36 },  // 우상
+  { scale:0.82, flatten:0.89, angle:133 },  // 좌상
+];
+// ── R(궁) 단검 방향별 시각 보정값 (좌하/우하/우상/좌상, xDirs 순서) ──
+const RDAG_DEFAULT = [
+  {dx: 22, dy: 17, squish:1.09},  // 좌하
+  {dx:-35, dy:  2, squish:1.06},  // 우하
+  {dx:-36, dy: 62, squish:1.06},  // 우상
+  {dx: 34, dy: 65, squish:1.00},  // 좌상
+];
+const rDagVis = RDAG_DEFAULT.map(o=>({...o}));
+try{ const s=localStorage.getItem('rDagVis'); if(s){ const arr=JSON.parse(s); arr.forEach((o,i)=>{ if(rDagVis[i]) Object.assign(rDagVis[i], o); }); } }catch(e){}
 
 (()=>{const m=document.getElementById('credit-modal');
 document.getElementById('credit').addEventListener('click',()=>m.classList.add('show'));
