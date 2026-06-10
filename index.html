@@ -95,8 +95,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
     <button id="as-up">+</button>
   </div>
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
-  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk" checked> 화면 흔들림</label></div>
-  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="quarter-chk" checked> 쿼터뷰</label></div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk"> 화면 흔들림</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="cursor-chk" checked> 커스텀 커서</label></div>
   <div style="display:none" class="row">
     <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
@@ -524,7 +523,7 @@ function flushBuffer(){
 function bufferShortCd(fn, cd){ if(cd>0 && cd<=CD_BUFFER_THRESHOLD){ skillBuffer=fn; skillBufferMouse={x:mouse.x,y:mouse.y}; } }
 let aMode = false;       // A키 공격 모드 (사거리 표시 + 좌클릭 타겟팅)
 let shake = {x:0,y:0,t:0,m:0};
-let shakeEnabled = true;
+let shakeEnabled = false;
 
 // ============================================================
 // DUMMY
@@ -2241,12 +2240,6 @@ document.getElementById('bisaek-chk').addEventListener('change',e=>{
 document.getElementById('shake-chk').addEventListener('change',e=>{
   shakeEnabled=e.target.checked;
   log(`화면 흔들림 ${shakeEnabled?'ON':'OFF'}`);
-});
-document.getElementById('quarter-chk').addEventListener('change',e=>{
-  quarterView=e.target.checked;
-  applyCamera();
-  resize();
-  log(`쿼터뷰 ${quarterView?'ON':'OFF'}`);
 });
 const showWViz=false;
 
