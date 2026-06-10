@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="color-scheme" content="dark">
-<title>Shoichi Simulator v1</title>
-<link rel="icon" type="image/png" href="favicon.png">
+<title>Shoichi Simulator</title>
+<link rel="icon" type="image/png" href="sprite/fav.png">
 <style>
 :root{color-scheme:dark;forced-color-adjust:none}
 img{forced-color-adjust:none}
@@ -1138,7 +1138,8 @@ function castR(){
         rHitAll.add(d);
       }
     }
-    effects.push({type:'raoe',x:castX,y:castY,r:178,t:0,mt:25});
+    // 원작 GIF: 시그니처 핫핑크 초승달 아크가 휘감기듯 회전하며 소멸
+    effects.push({type:'rcrescent',x:castX,y:castY,r:178,a0:Math.random()*Math.PI*2,t:0,mt:22});
     shake.t=10;shake.m=6;
 
     // X자 방향: 좌하, 우하, 우상, 좌상 순서로 펼침
@@ -1181,6 +1182,8 @@ function castR(){
         effects.push({type:'rslash',x1:castX,y1:castY,
           x2:dgX,y2:dgY,
           t:0,mt:20,w:CONF.rDaggerPathW});
+        // 원작 GIF: 단검 착지 지점의 부드러운 핑크 글로우
+        effects.push({type:'rglow',x:dgX,y:dgY,r:46,t:0,mt:30});
 
         // 마지막 단검 배치 후 R hit/miss 사운드
       },'R');
@@ -1968,11 +1971,12 @@ function draw(){
       ctx.strokeStyle=`rgba(220,50,50,${a*.5})`;ctx.lineWidth=CONF.wWidth*0.5*(1-p);ctx.lineCap='round';
       ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
     }else if(e.type==='rslash'){
-      ctx.strokeStyle=`rgba(162,22,67,${a})`;ctx.lineWidth=e.w*(1-p*.5);ctx.lineCap='round';
-      ctx.shadowColor='#A21643';ctx.shadowBlur=10*a;
+      // 원작 GIF: 핫핑크 슬래시 + 백색 코어
+      ctx.strokeStyle=`rgba(255,46,99,${a})`;ctx.lineWidth=e.w*(1-p*.5);ctx.lineCap='round';
+      ctx.shadowColor='#ff2e63';ctx.shadowBlur=14*a;
       ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
       ctx.shadowBlur=0;
-      ctx.strokeStyle=`rgba(255,255,255,${a*.6})`;ctx.lineWidth=2;
+      ctx.strokeStyle=`rgba(255,230,236,${a*.7})`;ctx.lineWidth=2.5;
       ctx.beginPath();ctx.moveTo(e.x1,e.y1);ctx.lineTo(e.x2,e.y2);ctx.stroke();
     }else if(e.type==='blink'){
       e.x+=e.vx*tick;e.y+=e.vy*tick;
@@ -2015,6 +2019,30 @@ function draw(){
       }else{
         ctx.beginPath();ctx.arc(e.x1,e.y1,hw,0,Math.PI*2);ctx.stroke();
       }
+    }else if(e.type==='rcrescent'){
+      // R 핫핑크 초승달 아크 (원작 GIF의 시그니처) — 휘감기듯 회전하며 소멸
+      const rr=e.r*0.75*(0.55+0.45*Math.min(1,e.t/6));
+      const sweep=Math.PI*1.45;
+      const a0=e.a0+p*0.9;
+      ctx.lineCap='round';
+      ctx.shadowColor='#ff2e63';ctx.shadowBlur=26*a;
+      ctx.strokeStyle=`rgba(255,46,99,${a*0.85})`;ctx.lineWidth=26*(1-p*0.45);
+      ctx.beginPath();ctx.arc(e.x,e.y,rr,a0,a0+sweep);ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle=`rgba(255,200,215,${a*0.9})`;ctx.lineWidth=7*(1-p*0.5);
+      ctx.beginPath();ctx.arc(e.x,e.y,rr,a0+0.12,a0+sweep-0.12);ctx.stroke();
+      // 범위 내부 옅은 붉은 채움
+      ctx.fillStyle=`rgba(255,46,99,${a*0.07})`;
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();
+    }else if(e.type==='rglow'){
+      // R 단검 착지 핑크 글로우 (원작 GIF: 부드럽게 퍼지다 사라짐)
+      const gr=e.r*(0.6+p*0.5);
+      const gg=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,gr);
+      gg.addColorStop(0,`rgba(255,235,238,${a*0.55})`);
+      gg.addColorStop(0.5,`rgba(255,120,150,${a*0.3})`);
+      gg.addColorStop(1,'rgba(255,80,120,0)');
+      ctx.fillStyle=gg;
+      ctx.beginPath();ctx.arc(e.x,e.y,gr,0,Math.PI*2);ctx.fill();
     }
   }
 
@@ -2276,7 +2304,15 @@ document.getElementById('cd-reset-btn').addEventListener('click',()=>{
   btn.textContent=`쿨초기화 모드: ${cdResetMode?'ON':'OFF'}`;
   btn.style.borderColor=cdResetMode?'#f80':'#555';
   btn.style.color=cdResetMode?'#f80':'#ddd';
-  if(cdResetMode){P.qCd=0;P.wCd=0;P.eCd=0;P.rCd=0;P.atkCd=0;P.blinkCd=0;P.dCd=0;}
+  if(cdResetMode){
+    P.qCd=0;P.wCd=0;P.eCd=0;P.rCd=0;P.atkCd=0;P.blinkCd=0;P.dCd=0;
+    // 원작 동작: 쿨초모드 활성화 시 Q2(강화) 상태 해제
+    if(P.qEnhanced){
+      P.qEnhanced=false;P.qEnhTimer=0;
+      document.getElementById('bQ').classList.remove('enhanced');
+      document.getElementById('qIcon').src='icon/shoqfix.png';
+    }
+  }
   log(`쿨초기화 모드 ${cdResetMode?'ON':'OFF'}`);
 });
 
