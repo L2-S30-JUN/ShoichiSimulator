@@ -334,7 +334,7 @@ const CURSOR_H=Math.round(74*347/619);
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 function beep(f,d,t='square',v=.1){const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}
 // WAV 효과음 (WebAudio AudioBuffer로 디코드 — 지연 없음)
-const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','blink','nodagger','daggerskill','daggerskill2','cloakend','cooldown'];
+const sfxNames=['attack','attackhit','Q_missed','Qdamage','Q2_missed','Q2damage','W_daggerhit','Wdamage','E_missed','Edagger_hit','R_missed','R_hit','daggerdrop','daggerhit','daggerpick','blink','nodagger','daggerskill','daggerskill2','cloakend','cooldown'];
 const sfxBuf={};
 sfxNames.forEach(name=>{
   fetch(`sfx/${name}.wav`).then(r=>r.arrayBuffer()).then(b=>AC.decodeAudioData(b)).then(buf=>{sfxBuf[name]=buf;}).catch(()=>{});
@@ -565,6 +565,8 @@ function pickupDagger(idx, viaW){
   if(!best){
     playSfx('nodagger');
   } else {
+    // 걸어가서 회수: 주위에 적이 있으면 daggerpick 재생 (적이 없으면 위의 nodagger)
+    if(!viaW) playSfx('daggerpick');
     const a=ang(P,best);
     const bonus = best.eMark ? 1+CONF.eMarkDmgBonus : 1;
     projectiles.push({
