@@ -27,10 +27,6 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 .sk .cd{position:absolute;inset:0;background:rgba(0,0,0,.7);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#ff0;display:none}
 .sk.ready{border-color:#5af;box-shadow:0 0 6px rgba(80,160,255,.3)}
 .sk.enhanced{border-color:#f80;box-shadow:0 0 10px rgba(255,140,0,.5)}
-#passive-ui{position:fixed;top:8px;right:8px;background:rgba(0,0,0,.6);padding:8px 14px;border-radius:6px;font-size:14px;z-index:20}
-#passive-ui .dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #666;margin:0 2px;vertical-align:middle}
-#passive-ui .dot.on{background:#f80;border-color:#fa0;box-shadow:0 0 4px #f80}
-#passive-ui .full{color:#f80;font-weight:bold;font-size:12px;display:none;margin-top:4px}
 #log{position:fixed;bottom:90px;left:8px;font-size:11px;color:#888;background:rgba(0,0,0,.5);padding:6px 10px;border-radius:6px;max-height:120px;overflow:hidden;pointer-events:none;width:260px}
 #log div{margin-bottom:2px;opacity:.9}
 #credit{position:fixed;bottom:8px;right:8px;font-size:11px;color:#888;background:rgba(0,0,0,.4);padding:4px 8px;border-radius:4px;cursor:pointer;z-index:50}
@@ -44,13 +40,17 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 #credit-modal .thanks-list{color:#bbb;margin-top:6px}
 #credit-modal .close{margin-top:18px;padding:6px 18px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;cursor:pointer;font-size:12px}
 #credit-modal .close:hover{background:#333}
-#cdr-ui{position:fixed;top:80px;right:8px;background:rgba(0,0,0,.6);padding:10px 14px;border-radius:6px;font-size:13px;user-select:none;z-index:20}
-#cdr-ui .label{color:#aaa;margin-bottom:6px}
-#cdr-ui .row{display:flex;align-items:center;gap:8px}
-#cdr-ui .row button{width:28px;height:28px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#cdr-ui{position:fixed;top:8px;right:8px;background:rgba(0,0,0,.6);padding:7px 10px;border-radius:6px;font-size:11px;user-select:none;z-index:20;width:212px}
+#cdr-ui .row{justify-content:center}
+#cdr-ui .col2{display:flex;gap:10px}
+#cdr-ui .col2>div{flex:1}
+#cdr-ui .label{color:#aaa;margin-bottom:3px}
+#cdr-ui .row{display:flex;align-items:center;gap:6px}
+#cdr-ui .row button{width:22px;height:22px;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #cdr-ui .row button:hover{background:#333;border-color:#5af}
-#cdr-ui .val{font-size:18px;font-weight:bold;color:#5af;min-width:50px;text-align:center}
-#cdr-ui .rate{font-size:12px;color:#f80;margin-top:4px;text-align:center}
+#cdr-ui .val{font-size:15px;font-weight:bold;color:#5af;min-width:40px;text-align:center}
+#cdr-ui .rate{font-size:11px;color:#f80;margin-top:3px;text-align:center}
+#cdr-collapse.collapsed{display:none}
 #rdag-ui{position:fixed;top:80px;left:8px;background:rgba(0,0,0,.6);padding:10px 12px;border-radius:6px;font-size:11px;color:#ddd;user-select:none;z-index:20;width:196px}
 #rdag-ui .rd-title{color:#aaa;font-size:12px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:4px;cursor:pointer}
 #rdag-ui .rd-grp{margin-bottom:6px}
@@ -101,42 +101,47 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 </style>
 </head>
 <body>
-<div id="passive-ui">
-  부당거래
-  <span class="dot" id="s0"></span><span class="dot" id="s1"></span><span class="dot" id="s2"></span><span class="dot" id="s3"></span><span class="dot" id="s4"></span>
-  <div class="full" id="stack-full">강화 공격 준비!</div>
-</div>
 <div id="cdr-ui">
-  <div class="label">쿨타임 감소</div>
-  <div class="row">
-    <button id="cdr-down">-</button>
-    <span class="val" id="cdr-val">0</span>
-    <button id="cdr-up">+</button>
+  <div class="col2">
+    <div>
+      <div class="label" style="text-align:center">쿨타임 감소</div>
+      <div class="row">
+        <button id="cdr-down">-</button>
+        <span class="val" id="cdr-val">0</span>
+        <button id="cdr-up">+</button>
+      </div>
+      <div class="rate" id="cdr-rate">감소율: 0%</div>
+    </div>
+    <div>
+      <div class="label" style="text-align:center">공격속도</div>
+      <div class="row">
+        <button id="as-down">-</button>
+        <span class="val" id="as-val">1.08</span>
+        <button id="as-up">+</button>
+      </div>
+    </div>
   </div>
-  <div class="rate" id="cdr-rate">감소율: 0%</div>
-  <div style="margin-top:8px"><button id="cd-reset-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">쿨초기화 모드: OFF</button><div style="font-size:10px;color:#888;text-align:center;margin-top:2px">기본 단축키는 ~(물결표)</div></div>
-  <div style="margin-top:10px" class="label">공격속도</div>
-  <div class="row">
-    <button id="as-down">-</button>
-    <span class="val" id="as-val">1.08</span>
-    <button id="as-up">+</button>
-  </div>
+  <div style="margin-top:6px"><button id="cd-reset-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">쿨초기화 모드: OFF</button><div style="font-size:10px;color:#888;text-align:center;margin-top:2px">기본 단축키는 ~(물결표)</div></div>
+  <div style="margin-top:6px"><button id="ui-collapse-btn" style="width:100%;padding:3px 0;border:1px solid #555;border-radius:4px;background:#222;color:#bbb;font-size:11px;cursor:pointer">▲ 옵션 접기</button></div>
+  <div id="cdr-collapse">
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="shake-chk"> 화면 흔들림</label></div>
   <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="cursor-chk" checked> 커스텀 커서</label></div>
   <div style="margin-top:2px;font-size:10px;color:#888">마우스가 흐물거리면 체크 해제해주세요</div>
-  <div style="margin-top:10px" class="label">사운드 볼륨</div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="cam-fixed-chk"> 카메라 고정 모드</label></div>
+  <div style="margin-top:2px;font-size:10px;color:#888">체크 시 마우스를 화면 가장자리로 밀어도<br>카메라가 움직이지 않습니다</div>
+  <div style="margin-top:6px" class="label">사운드 볼륨</div>
   <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
     <input type="range" id="vol-slider" min="0" max="100" value="100" style="flex:1;accent-color:#5af;cursor:pointer">
     <span id="vol-val" style="font-size:11px;color:#ddd;width:34px;text-align:right">100%</span>
   </div>
-  <div style="margin-top:10px;display:flex;gap:4px">
+  <div style="margin-top:6px;display:flex;gap:4px">
     <button id="dummy-spawn-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">더미 생성</button>
     <button id="dummy-del-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">더미 삭제</button>
+    <button id="settings-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">⚙ 설정</button>
   </div>
   <div style="font-size:10px;color:#888;text-align:center;margin-top:2px" id="dummy-mode-hint">버튼 클릭 후 좌클릭한 위치에 적용</div>
-  <div style="margin-top:10px"><button id="settings-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">⚙ 설정</button></div>
-  <div style="margin-top:10px" class="label">콤보 가이드</div>
+  <div style="margin-top:6px" class="label">콤보 가이드</div>
   <div style="margin-top:2px;display:flex;gap:4px">
     <button id="rec-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">● 녹화</button>
     <button id="play-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">▶ 재생</button>
@@ -151,6 +156,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
   <div style="font-size:10px;color:#888;text-align:center;margin-top:2px">버튼을 누르면 예시 콤보 쉐도우 재생</div>
   <div style="display:none" class="row">
     <button id="fps-down">-</button><span id="fps-val"></span><button id="fps-up">+</button>
+  </div>
   </div>
 </div>
 <div id="log"></div>
@@ -193,6 +199,12 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
       <div class="kcol"><div class="klabel">협상</div><button id="key-e">E</button></div>
       <div class="kcol"><div class="klabel">무자비</div><button id="key-r">R</button></div>
     </div>
+    <div class="row" style="margin-top:14px"><span>카메라 키 변경</span><button class="reset-btn" id="key-cam-reset">초기화</button></div>
+    <div class="keys">
+      <div class="kcol"><div class="klabel">중앙이동</div><button id="key-camCenter">Space</button></div>
+      <div class="kcol"><div class="klabel">고정토글</div><button id="key-camLock">Y</button></div>
+    </div>
+    <div class="sub" style="text-align:center;margin-top:4px">중앙이동: 카메라를 캐릭터로 (누르는 동안 추적) / 고정토글: 카메라를 캐릭터에 고정</div>
     <div class="sub" style="text-align:center;margin-top:4px">버튼 클릭 후 원하는 키 입력 (ESC 취소)</div>
     <button class="close" id="settings-close">닫기</button>
   </div>
@@ -366,7 +378,7 @@ const CONF = {
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 let quarterView = true;
-const cam = { roll: -8, scaleY: 1.01, scaleX: 0.92, tiltX: 44.5, tiltY: 0.5, persp: 1600, zoom: 1.57 };
+const cam = { roll: -8, scaleY: 1.01, scaleX: 0.92, tiltX: 46.5, tiltY: 0.5, persp: 1600, zoom: 1.62 };
 function applyCamera(){
   if(quarterView){
     canvas.style.transform=`scale(${cam.zoom}) perspective(${cam.persp}px) rotateX(${cam.tiltX}deg) rotateY(${cam.tiltY}deg) rotate(${cam.roll}deg) scale(${cam.scaleX},${cam.scaleY})`;
@@ -395,7 +407,7 @@ function screenToWorld(clientX, clientY){
     xs=ux/cam.scaleX; ys=vy/cam.scaleY;
   }
   const sxk=canvas.width/r.width, syk=canvas.height/r.height;
-  return { x: xs*sxk+canvas.width/2, y: ys*syk+canvas.height/2 };
+  return { x: xs*sxk+canvas.width/2+camX, y: ys*syk+canvas.height/2+camY };
 }
 
 // 내부 버퍼 해상도는 고정 → 렌더링 비용과 비율이 해상도 독립적으로 일관됨
@@ -404,6 +416,46 @@ const DESIGN_H_Q = 1280;  // 쿼터뷰 (3:2)
 const DESIGN_H_F = 1080;  // 평면 (16:9)
 // 내부 캔버스는 항상 1920×1080(또는 1920×1280) 고정 → 게임 내 거리·크기는 해상도 무관 일정.
 // CSS 표시 크기만 현재 창에 맞춰 비례 축소/확대 (월드 좌표·물리 영향 없음).
+
+// ============================================================
+// 큰 맵 + AOS 가장자리 스크롤 카메라
+//  - 월드를 뷰포트보다 크게 확장. PX(거리·크기 기준)는 고정이므로
+//    단검 사거리·캐릭터 비율 등 게임 내 척도는 전혀 바뀌지 않는다.
+//  - 뷰포트(1920×1080/1280)는 월드의 일부만 보여주고, 마우스를 화면
+//    가장자리로 밀면 camX/camY가 이동해 카메라가 스크롤된다.
+// ============================================================
+const MAP_SCALE = 3;                       // 맵 확대 배율 (월드 = 플레이영역 × 배율)
+const WORLD_W = DESIGN_W * MAP_SCALE;       // 5760
+const WORLD_H = DESIGN_H_Q * MAP_SCALE;     // 3840
+// 녹화 콤보 좌표(기존 플레이영역 0..1920×0..1280)를 월드 중앙에 두기 위해 원점을 음수로 이동.
+// → 캐릭터를 중심으로 상하좌우 모두 동일하게 스크롤 여유가 생긴다.
+const WORLD_X0 = -(WORLD_W - DESIGN_W)/2;   // -1920
+const WORLD_Y0 = -(WORLD_H - DESIGN_H_Q)/2; // -1280
+const WORLD_X1 = WORLD_X0 + WORLD_W;        //  3840
+const WORLD_Y1 = WORLD_Y0 + WORLD_H;        //  2560
+let camX = 0, camY = 0;                     // 뷰포트 좌상단의 월드 좌표
+let camLock = false;                        // Y: 카메라를 플레이어에 고정(토글)
+let spaceFollow = false;                    // Space: 누르는 동안 플레이어로 카메라 이동
+function clampCamera(){
+  camX = clamp(camX, WORLD_X0, WORLD_X1 - canvas.width);
+  camY = clamp(camY, WORLD_Y0, WORLD_Y1 - canvas.height);
+}
+let camFocusX = 0.51, camFocusY = 0.44; // 캐릭터 중심이 화면에서 위치할 비율 (0~1)
+function centerCameraOn(x,y){ camX = x - canvas.width*camFocusX; camY = y - canvas.height*camFocusY; clampCamera(); }
+// 가장자리 스크롤 입력 (캔버스 기준 정규화 마우스 위치 0~1)
+let edgeNX = 0.5, edgeNY = 0.5, edgeActive = false;
+function updateCamera(rdt){
+  if(camLock || spaceFollow){ centerCameraOn(P.x, P.y); return; } // 키(중앙이동/고정토글)로 캐릭터 추적
+  if(settings.fixedCam) return; // 고정 모드: 가장자리 스크롤 없음 — 카메라가 그 자리에 정지
+  if(!edgeActive) return;
+  const edge = 0.045;          // 가장자리 4.5% 영역에서 스크롤
+  const speed = 1100;          // 스크롤 속도 (월드 px/초)
+  let dx = 0, dy = 0;
+  if(edgeNX < edge) dx = -1; else if(edgeNX > 1 - edge) dx = 1;
+  if(edgeNY < edge) dy = -1; else if(edgeNY > 1 - edge) dy = 1;
+  if(dx || dy){ camX += dx*speed*rdt; camY += dy*speed*rdt; clampCamera(); }
+}
+
 function fitCanvas() {
   const vw = window.innerWidth, vh = window.innerHeight - 20;
   const scale = Math.min(vw / canvas.width, vh / canvas.height);
@@ -541,7 +593,7 @@ let moveTarget = null;
 
 // Player
 const P = {
-  x: canvas.width/2, y: canvas.height/2 + 130, r: 0.45 * PX, angle: 0,
+  x: DESIGN_W/2, y: DESIGN_H_Q/2 + 130, r: 0.45 * PX, angle: 0,
   // stacks
   stacks: 0, stackTimer: 0,
   enhancedAA: false,
@@ -632,15 +684,16 @@ function spawnDummy(x,y){
     eMark:false,eMarkTimer:0,
   });
 }
-spawnDummy(canvas.width/2, canvas.height/2 - 130);
+spawnDummy(DESIGN_W/2, DESIGN_H_Q/2 - 130);
+centerCameraOn(P.x, P.y); // 시작 시 카메라를 플레이어 중심으로 (클램프되어 좌상단 영역 표시)
 
 // ============================================================
 // DAGGER SYSTEM
 // ============================================================
 function spawnDagger(x,y){
-  // clamp to canvas
-  x = clamp(x, 10, canvas.width-10);
-  y = clamp(y, 10, canvas.height-10);
+  // clamp to world
+  x = clamp(x, WORLD_X0+10, WORLD_X1-10);
+  y = clamp(y, WORLD_Y0+10, WORLD_Y1-10);
   daggers.push({x, y, age:0, pickup:false});
   sfxDaggerDrop();
 }
@@ -703,21 +756,16 @@ function addStack(){
   P.stackTimer=CONF.stackDur; // 스택 쌓일 때마다 5초 초기화
   if(P.stacks>=CONF.stackMax){
     P.enhancedAA=true;
-    document.getElementById('stack-full').style.display='block';
   }
   updateStackUI();
 }
 
 function consumeStacks(){
   P.stacks=0;P.stackTimer=0;P.enhancedAA=false;
-  document.getElementById('stack-full').style.display='none';
   updateStackUI();
 }
 
 function updateStackUI(){
-  for(let i=0;i<5;i++){
-    document.getElementById('s'+i).className='dot'+(i<P.stacks?' on':'');
-  }
   const si=document.getElementById('stack-indicator');
   const sn=document.getElementById('stack-num');
   if(P.stacks>0){
@@ -1375,8 +1423,8 @@ function castBlink(){
   const ox=P.x,oy=P.y;
   let nx=P.x+Math.cos(a)*d;
   let ny=P.y+Math.sin(a)*d;
-  nx=clamp(nx,P.r,canvas.width-P.r);
-  ny=clamp(ny,P.r,canvas.height-P.r);
+  nx=clamp(nx,WORLD_X0+P.r,WORLD_X1-P.r);
+  ny=clamp(ny,WORLD_Y0+P.r,WORLD_Y1-P.r);
   // 파란색 파티클 (출발지)
   for(let i=0;i<12;i++){
     const pa=Math.random()*Math.PI*2;
@@ -1484,6 +1532,7 @@ function addFanEffect(x,y,a,r,ha,col){
 // ============================================================
 function update(rdt){
   tick=rdt||dt; // 실제 경과 시간 사용
+  updateCamera(rdt||dt); // AOS 가장자리 스크롤 카메라
   tickRecord();  // 콤보 녹화 위치 샘플링
   tickGuide();   // 콤보 재생 진행/가이드
   tickScheduler(tick);
@@ -1534,8 +1583,7 @@ function update(rdt){
   }
   if(P.stackTimer>0){
     P.stackTimer-=tick;
-    if(P.stackTimer<=0&&P.stacks>0){P.stacks=0;P.enhancedAA=false;updateStackUI();
-      document.getElementById('stack-full').style.display='none';}
+    if(P.stackTimer<=0&&P.stacks>0){P.stacks=0;P.enhancedAA=false;updateStackUI();}
     else if(P.stacks>0&&P.stacks<CONF.stackMax){
       const pct=Math.max(0,P.stackTimer/CONF.stackDur)*100;
       document.getElementById('stack-indicator').style.setProperty('--p',pct+'%');
@@ -1687,7 +1735,7 @@ function update(rdt){
     }
 
     if(wallBlock(p.x,p.y,p.r))p.life=0;
-    if(p.life<=0||p.x<-50||p.x>canvas.width+50||p.y<-50||p.y>canvas.height+50){
+    if(p.life<=0||p.x<WORLD_X0-50||p.x>WORLD_X1+50||p.y<WORLD_Y0-50||p.y>WORLD_Y1+50){
       projectiles.splice(i,1);
     }
   }
@@ -1713,8 +1761,8 @@ function update(rdt){
   else{shake.t=0;shake.x=0;shake.y=0}
 
   // Clamp
-  P.x=clamp(P.x,P.r,canvas.width-P.r);
-  P.y=clamp(P.y,P.r,canvas.height-P.r);
+  P.x=clamp(P.x,WORLD_X0+P.r,WORLD_X1-P.r);
+  P.y=clamp(P.y,WORLD_Y0+P.r,WORLD_Y1-P.r);
 
   // UI
   updateSkillUI('cQ','bQ',P.qCd,CONF.qCd);
@@ -1742,17 +1790,24 @@ function updateSkillUI(cdId,btnId,cd,cdMax){
 // DRAW
 // ============================================================
 function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height); // 화면(뷰포트) 지우기
   ctx.save();
-  ctx.translate(shake.x,shake.y);
-  ctx.clearRect(-10,-10,canvas.width+20,canvas.height+20);
+  ctx.translate(shake.x - camX, shake.y - camY); // 카메라 오프셋 적용 (월드 → 화면)
 
-  // Grid (전체 캔버스 절차적 렌더링)
+  // 보이는 월드 영역만 그리드 렌더링 (큰 맵 전체를 매 프레임 그리지 않도록)
+  const vx0 = Math.max(WORLD_X0, camX), vy0 = Math.max(WORLD_Y0, camY);
+  const vx1 = Math.min(WORLD_X1, camX+canvas.width), vy1 = Math.min(WORLD_Y1, camY+canvas.height);
+  const gx0 = Math.ceil(vx0/40)*40, gy0 = Math.ceil(vy0/40)*40;
   ctx.strokeStyle = '#1a1a2a';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x <= canvas.width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
-  for (let y = 0; y <= canvas.height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
+  for (let x = gx0; x <= vx1; x += 40) { ctx.moveTo(x, vy0); ctx.lineTo(x, vy1); }
+  for (let y = gy0; y <= vy1; y += 40) { ctx.moveTo(vx0, y); ctx.lineTo(vx1, y); }
   ctx.stroke();
+  // 월드 경계
+  ctx.strokeStyle = '#2c2c46';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(WORLD_X0, WORLD_Y0, WORLD_W, WORLD_H);
 
 
   // Move target
@@ -2483,14 +2538,21 @@ document.addEventListener('mousemove',e=>{
   // CSS 픽셀 → 캔버스 버퍼 픽셀 변환 (해상도 독립)
   const sx = canvas.width / r.width, sy = canvas.height / r.height;
   xs *= sx; ys *= sy;
-  mouse.x = xs + canvas.width/2;
-  mouse.y = ys + canvas.height/2;
+  mouse.x = xs + canvas.width/2 + camX; // 카메라 오프셋을 더해 월드 좌표로
+  mouse.y = ys + canvas.height/2 + camY;
   liveMouse.x = mouse.x; liveMouse.y = mouse.y; // 실시간 커서 추적 (flush 중 mouse가 덮여도 보존)
+  // 가장자리 스크롤: 화면(윈도우) 가장자리 기준.
+  // 쿼터뷰 원근으로 캔버스가 사다리꼴이 되어 상단 모서리가 캔버스 밖(배경)이 되더라도,
+  // 화면 끝까지 밀면 스크롤되도록 캔버스 적중 여부가 아닌 윈도우 좌표를 사용한다.
+  edgeNX = e.clientX / window.innerWidth;
+  edgeNY = e.clientY / window.innerHeight;
+  // UI 패널·모달 위에서는 스크롤하지 않음
+  edgeActive = !(e.target.closest && e.target.closest('#cdr-ui,#hud,#settings-modal,#combo-modal,#notice-modal'));
   if(rightDown) handleRightClick(mouse.x,mouse.y);
 });
-document.addEventListener('mouseleave',()=>cursorEl.style.display='none');
+document.addEventListener('mouseleave',()=>{cursorEl.style.display='none';edgeActive=false;});
 
-canvas.addEventListener('contextmenu',e=>e.preventDefault());
+window.addEventListener('contextmenu',e=>e.preventDefault());
 
 function handleRightClick(mx,my){
   // R/E 넉백 시전 중에도 이동명령을 받아 moveTarget만 설정해두고, 시전이 끝나면 이행한다 (Q/Q2와 동일)
@@ -2564,9 +2626,13 @@ document.addEventListener('keydown',e=>{
   if(captureSlot){
     e.preventDefault();
     if(c==='Escape'){captureSlot=null;updateKeyBtns();return;}
-    if(BINDABLE_RE.test(c) && !RESERVED_CODES.has(c)){
-      // 이미 다른 슬롯에 배정된 키면 두 슬롯의 키를 맞교환
-      const other=KEY_SLOTS.find(s=>s!==captureSlot&&keyBind[s]===c);
+    const isCam=CAM_SLOTS.includes(captureSlot);
+    // 카메라 슬롯은 Space도 허용, 스킬 슬롯은 기존 규칙(예약키 금지)
+    const ok=isCam ? (c==='Space'||BINDABLE_RE.test(c)) : (BINDABLE_RE.test(c)&&!RESERVED_CODES.has(c));
+    if(ok){
+      // 이미 다른 슬롯(스킬·카메라 포함)에 배정된 키면 두 슬롯의 키를 맞교환
+      const all=[...KEY_SLOTS,...CAM_SLOTS];
+      const other=all.find(s=>s!==captureSlot&&keyBind[s]===c);
       if(other)keyBind[other]=keyBind[captureSlot];
       keyBind[captureSlot]=c;
       captureSlot=null;updateKeyBtns();saveSettings();
@@ -2575,6 +2641,9 @@ document.addEventListener('keydown',e=>{
   }
   // 설정창이 열려있는 동안 게임 키 입력 차단
   if(document.getElementById('settings-modal').classList.contains('show'))return;
+  // 카메라 키 (LoL식): Space=캐릭터로 카메라 이동(누르는 동안 추적) / Y=캐릭터 고정 토글
+  if(c===keyBind.camCenter){ e.preventDefault(); spaceFollow=true; centerCameraOn(P.x,P.y); return; }
+  if(c===keyBind.camLock){ camLock=!camLock; log(`카메라 고정 ${camLock?'ON':'OFF'}`); if(camLock)centerCameraOn(P.x,P.y); return; }
   // 입력 키 → 스킬 슬롯 변환 (커스텀 키 바인딩 + D/F 스왑 반영)
   let slot;
   if(c===keyBind.q)slot='q';
@@ -2632,6 +2701,8 @@ document.addEventListener('keydown',e=>{
   else if(slot==='3')spawnDummy(mouse.x,mouse.y);
   else if(slot==='4'){const closest=dummies.filter(d=>d.alive).sort((a,b)=>dist(mouse,a)-dist(mouse,b))[0];if(closest)closest.alive=false;}
 });
+// Space(중앙이동 키)에서 손을 떼면 추적 중단
+document.addEventListener('keyup',e=>{ if(e.code===keyBind.camCenter) spaceFollow=false; });
 
 // CDR UI
 function updateCdrUI(){
@@ -2736,11 +2807,12 @@ m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');});})(
 // ============================================================
 // 설정 (자동평타 / 마우스 반전 / D-F 스왑 / 스킬 키 커스텀)
 // ============================================================
-const settings={autoAtk:true, mouseInvert:false, dfSwap:false, volume:1, moveAtkClick:true};
+const settings={autoAtk:true, mouseInvert:false, dfSwap:false, volume:1, moveAtkClick:true, fixedCam:false};
 function applyVolume(){ masterGain.gain.value=settings.volume*settings.volume; } // 제곱 커브: 슬라이더 체감 음량을 선형에 가깝게
 // 키 입력은 e.code(물리 키 위치) 기반: 한/영 입력 상태·Caps Lock과 무관하게 동작 (macOS 한글 IME 대응)
-const keyBind={q:'KeyQ', w:'KeyW', e:'KeyE', r:'KeyR'};
+const keyBind={q:'KeyQ', w:'KeyW', e:'KeyE', r:'KeyR', camCenter:'Space', camLock:'KeyY'};
 const KEY_SLOTS=['q','w','e','r'];
+const CAM_SLOTS=['camCenter','camLock']; // 카메라: 중앙이동 / 고정토글
 const RESERVED_CODES=new Set(['KeyA','KeyS','KeyD','KeyF','Digit1','Digit2','Digit3','Digit4','Numpad1','Numpad2','Numpad3','Numpad4','Backquote','Space']); // 다른 기능에 쓰이는 키는 바인딩 금지
 const BINDABLE_RE=/^(Key[A-Z]|Digit\d|Numpad\d|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote)$/;
 const CODE_PUNCT={Minus:'-',Equal:'=',BracketLeft:'[',BracketRight:']',Semicolon:';',Quote:"'",Comma:',',Period:'.',Slash:'/',Backslash:'\\',Backquote:'`'};
@@ -2748,6 +2820,7 @@ let captureSlot=null; // 키 입력 대기 중인 슬롯
 
 // code → 표시용 라벨 ('KeyT'→'T', 'Digit5'→'5', 'Semicolon'→';')
 function codeLabel(c){
+  if(c==='Space')return 'Space';
   if(c.startsWith('Key'))return c.slice(3);
   if(c.startsWith('Digit'))return c.slice(5);
   if(c.startsWith('Numpad'))return 'N'+c.slice(6);
@@ -2765,7 +2838,7 @@ function toCode(v){
 
 // 설정 localStorage 저장/복원
 function saveSettings(){
-  try{localStorage.setItem('shoichiSettings',JSON.stringify({autoAtk:settings.autoAtk,mouseInvert:settings.mouseInvert,dfSwap:settings.dfSwap,volume:settings.volume,moveAtkClick:settings.moveAtkClick,keyBind}));}catch(e){}
+  try{localStorage.setItem('shoichiSettings',JSON.stringify({autoAtk:settings.autoAtk,mouseInvert:settings.mouseInvert,dfSwap:settings.dfSwap,volume:settings.volume,moveAtkClick:settings.moveAtkClick,fixedCam:settings.fixedCam,keyBind}));}catch(e){}
 }
 function loadSettings(){
   try{
@@ -2776,6 +2849,7 @@ function loadSettings(){
     if(typeof s.dfSwap==='boolean')settings.dfSwap=s.dfSwap;
     if(typeof s.volume==='number'&&isFinite(s.volume))settings.volume=Math.min(1,Math.max(0,s.volume));
     if(typeof s.moveAtkClick==='boolean')settings.moveAtkClick=s.moveAtkClick;
+    if(typeof s.fixedCam==='boolean')settings.fixedCam=s.fixedCam;
     if(s.keyBind){
       for(const k of KEY_SLOTS){
         const code=toCode(s.keyBind[k]); // 구버전(문자) 저장값도 code 형식으로 마이그레이션
@@ -2784,13 +2858,20 @@ function loadSettings(){
       // 저장값이 손상되어 중복 바인딩이면 해당 슬롯을 기본키로 복구
       const seen=new Set();
       for(const k of KEY_SLOTS){ if(seen.has(keyBind[k]))keyBind[k]='Key'+k.toUpperCase(); seen.add(keyBind[k]); }
+      // 카메라 키 복원 (Space는 toCode 대상이 아니므로 별도 처리)
+      for(const k of CAM_SLOTS){
+        const v=s.keyBind[k];
+        const code=(v==='Space')?'Space':toCode(v);
+        if(code)keyBind[k]=code;
+      }
     }
   }catch(e){}
 }
 
 function updateKeyBtns(){
-  for(const s of KEY_SLOTS){
+  for(const s of [...KEY_SLOTS,...CAM_SLOTS]){
     const b=document.getElementById('key-'+s);
+    if(!b)continue;
     b.textContent=captureSlot===s?'...':codeLabel(keyBind[s]);
     b.classList.toggle('capturing',captureSlot===s);
   }
@@ -2840,6 +2921,11 @@ function applyDfSwap(){
     saveSettings();
     log(`플레이어 이동 공격 클릭 ${settings.moveAtkClick?'ON':'OFF (a키 즉시 평타)'}`);
   });
+  document.getElementById('cam-fixed-chk').addEventListener('change',e=>{
+    settings.fixedCam=e.target.checked;
+    saveSettings();
+    log(`카메라 ${settings.fixedCam?'고정 모드 (가장자리 스크롤 OFF)':'자유이동 모드'}`);
+  });
   const volSlider=document.getElementById('vol-slider'), volVal=document.getElementById('vol-val');
   volSlider.addEventListener('input',e=>{
     settings.volume=e.target.value/100;
@@ -2847,7 +2933,7 @@ function applyDfSwap(){
     volVal.textContent=e.target.value+'%';
     saveSettings();
   });
-  for(const s of KEY_SLOTS){
+  for(const s of [...KEY_SLOTS,...CAM_SLOTS]){
     document.getElementById('key-'+s).addEventListener('click',()=>{
       captureSlot=captureSlot===s?null:s;
       updateKeyBtns();
@@ -2859,12 +2945,19 @@ function applyDfSwap(){
     saveSettings();
     log('스킬 키 초기화 (QWER)');
   });
+  document.getElementById('key-cam-reset').addEventListener('click',()=>{
+    keyBind.camCenter='Space';keyBind.camLock='KeyY';
+    captureSlot=null;updateKeyBtns();
+    saveSettings();
+    log('카메라 키 초기화 (Space / Y)');
+  });
   // 저장된 설정 복원 및 UI 반영
   loadSettings();
   document.getElementById('set-autoatk').checked=settings.autoAtk;
   document.getElementById('set-invert').checked=settings.mouseInvert;
   document.getElementById('set-dfswap').checked=settings.dfSwap;
   document.getElementById('set-moveatk').checked=settings.moveAtkClick;
+  document.getElementById('cam-fixed-chk').checked=settings.fixedCam;
   if(settings.dfSwap)applyDfSwap();
   applyVolume();
   volSlider.value=Math.round(settings.volume*100);
@@ -2904,6 +2997,20 @@ document.getElementById('cd-reset-btn').addEventListener('click',()=>{
   }
   log(`쿨초기화 모드 ${cdResetMode?'ON':'OFF'}`);
 });
+
+// 공격속도 아래 옵션 UI 접기/펼치기
+(()=>{
+  const btn=document.getElementById('ui-collapse-btn');
+  const panel=document.getElementById('cdr-collapse');
+  function apply(collapsed){
+    panel.classList.toggle('collapsed',collapsed);
+    btn.textContent=collapsed?'▼ 옵션 펼치기':'▲ 옵션 접기';
+    try{localStorage.setItem('shoichiUiCollapsed',collapsed?'1':'0');}catch(e){}
+  }
+  btn.addEventListener('click',()=>apply(!panel.classList.contains('collapsed')));
+  let saved='0'; try{saved=localStorage.getItem('shoichiUiCollapsed')||'0';}catch(e){}
+  apply(saved==='1');
+})();
 
 function updateFpsUI(){
   const v=fpsOptions[fpsLimitIdx];
