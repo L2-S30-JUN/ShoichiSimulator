@@ -2089,8 +2089,11 @@ function drawEffectsArr(arr){
       }
     }else if(e.type==='dagdrop'){
       // 적에서 천천히 나와 착지점에 도달
-      const now=performance.now();
-      const rp=Math.min((now-(e.spawnTime-600))/600,1);
+      // 고스트(재생)면 ghostTime 기준 → 배속(슬로우모션) 반영, 실시간이면 performance.now() 기준
+      const ghostClock=(e._ghostLand!=null);
+      const now=ghostClock?ghostTime*1000:performance.now();
+      const land=ghostClock?e._ghostLand:e.spawnTime;
+      const rp=Math.min((now-(land-600))/600,1);
       const tp=Math.min(rp/0.8,1); // 80% 시간에 도착
       const ease=1-Math.pow(1-tp,2);
       const cx=e.sx+(e.x-e.sx)*ease;
@@ -2112,7 +2115,7 @@ function drawEffectsArr(arr){
       ctx.beginPath();ctx.moveTo(0,-4);ctx.lineTo(11,0);ctx.lineTo(0,4);ctx.lineTo(-11,0);ctx.closePath();ctx.fill();
       ctx.shadowBlur=0;
       ctx.restore();
-      if(now>=e.spawnTime) e.t=e.mt; // 단검 생성 시점에 제거
+      if(now>=land) e.t=e.mt; // 단검 생성 시점에 제거
     }else if(e.type==='hit'){
       const s=4+p*12;
       ctx.strokeStyle=`rgba(255,200,80,${a})`;ctx.lineWidth=2;
@@ -2446,9 +2449,14 @@ function tickGuide(){
   }
   // 도달한 이펙트 생성 (fx는 시각 오름차순)
   while(ghostFxIdx<ghost.fx.length && ghost.fx[ghostFxIdx][0]<=gt){
+    const fxT=ghost.fx[ghostFxIdx][0];
     const rec=ghost.fx[ghostFxIdx][1]; const e={};
     for(const k in rec)e[k]=rec[k];
-    if(typeof e._spawnOff==='number')e.spawnTime=performance.now()+e._spawnOff; // 재생 시각 기준으로 재설정
+    if(typeof e._spawnOff==='number'){
+      e.spawnTime=performance.now()+e._spawnOff; // 재생 시각 기준으로 재설정
+      // dagdrop(공중 단검 연출)은 고스트 타임라인 기준 착지시각을 둬서 배속(슬로우모션)의 영향을 받게 한다
+      if(e.type==='dagdrop')e._ghostLand=fxT+e._spawnOff;
+    }
     ghostEffects.push(e); ghostFxIdx++;
   }
   // 단검: 현재 살아있는 것 재구성 (정지 + age로 펄스)
