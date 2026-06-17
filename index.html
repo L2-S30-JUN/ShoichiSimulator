@@ -51,6 +51,15 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 #cdr-ui .val{font-size:15px;font-weight:bold;color:#5af;min-width:40px;text-align:center}
 #cdr-ui .rate{font-size:11px;color:#f80;margin-top:3px;text-align:center}
 #cdr-collapse.collapsed{display:none}
+.spd-btn{flex:1;padding:3px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:11px;cursor:pointer}
+.spd-btn:hover{background:#333;border-color:#5af}
+.spd-btn.active{border-color:#5af;color:#5af;background:#1a2438}
+#ghost-keys{position:fixed;top:64px;left:50%;transform:translateX(-50%);display:none;gap:5px;z-index:15;pointer-events:none}
+#ghost-keys.show{display:flex}
+#ghost-keys .gk{min-width:24px;height:34px;padding:0 7px;border:2px solid #37a;border-radius:6px;background:rgba(15,25,45,.9);color:#9cf;font-size:16px;font-weight:bold;display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px rgba(80,170,255,.4);animation:gkpop 1.4s ease-out forwards}
+#ghost-keys .gk.gk-atk{border-color:#6c6;color:#cfc;box-shadow:0 0 8px rgba(100,200,100,.4)}
+#ghost-keys .gk.gk-enh{border-color:#f80;color:#fdb;box-shadow:0 0 10px rgba(255,140,0,.5)}
+@keyframes gkpop{0%{transform:scale(1.5);border-color:#fff;color:#fff;opacity:1}10%{transform:scale(1);opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
 #rdag-ui{position:fixed;top:80px;left:8px;background:rgba(0,0,0,.6);padding:10px 12px;border-radius:6px;font-size:11px;color:#ddd;user-select:none;z-index:20;width:196px}
 #rdag-ui .rd-title{color:#aaa;font-size:12px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:4px;cursor:pointer}
 #rdag-ui .rd-grp{margin-bottom:6px}
@@ -146,6 +155,12 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
     <button id="rec-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">● 녹화</button>
     <button id="play-btn" style="flex:1;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">▶ 재생</button>
   </div>
+  <div style="margin-top:4px;display:flex;gap:4px;align-items:center">
+    <span style="font-size:10px;color:#888;width:28px">배속</span>
+    <button class="spd-btn active" data-spd="1">1x</button>
+    <button class="spd-btn" data-spd="0.5">0.5x</button>
+    <button class="spd-btn" data-spd="0.3">0.3x</button>
+  </div>
   <div style="margin-top:4px"><button id="combo-code-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">📋 공유 코드</button></div>
   <div style="font-size:10px;color:#888;text-align:center;margin-top:2px" id="combo-hint">녹화 후 코드로 공유 · 고스트로 재생</div>
   <div style="margin-top:6px;display:flex;gap:4px">
@@ -162,6 +177,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
 <div id="log"></div>
 <div id="canvas-wrap" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;z-index:1;"><canvas id="c"></canvas></div>
 <div id="stack-indicator"><span class="icon"></span><span class="num" id="stack-num">0</span></div>
+<div id="ghost-keys"></div>
 <div id="hud">
   <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoqfix.png"><div class="cd" id="cQ"></div></div>
   <div class="sk ready" id="bW"><span class="key">W</span><img class="icon-img" src="icon/showfix.png"><div class="cd" id="cW"></div></div>
@@ -808,6 +824,7 @@ function resolveAttack(){
   const wasEnhanced=P.atkPendingEnh;
   P.atkPending=false;P.atkPendingTarget=null;
   if(!tgt||!tgt.alive)return;
+  if(recording) recKeys.push([Math.round(recTime*1000), wasEnhanced?'eatk':'atk']); // 적중 확정된 평타/강화평타만 기록 (캔슬·빗나감 제외)
   if(wasEnhanced){
     consumeStacks();
     hitDummy(tgt, CONF.enhancedAtkDmg + 40, atkAngle, false);
@@ -896,6 +913,7 @@ function castQ(){
   moveTarget=null;
   P.atkTarget=null;P.wAutoTarget=null;
   const wasEnhanced=P.qEnhanced;
+  if(recording) recKeys.push([Math.round(recTime*1000), wasEnhanced?'q2':'q']); // Q/Q2 구분 기록
   P.qCasting=true;P.qCastTimer=wasEnhanced?23/60:0.2; // Q: 선딜 0.2초, Q2: 23프레임(60fps 기준)
   P.qCd=0.3; // 임시 쿨다운 (연타 방지, 판정 시 실제 쿨다운으로 덮어씀)
 
@@ -1012,6 +1030,7 @@ function castW(){
 
 function executeW(target,type){
   sfxW();
+  if(recording) recKeys.push([Math.round(recTime*1000),'w']); // 비약 발동 시 기록 (맨땅 W는 발동 안 되므로 제외, 단검 이동용 W는 포함)
   // 평타명령(우클릭 추격) 해제: 단, W 대상이 "더미(enemy)"일 때만 해제한다.
   // (착지 시 사거리 내 더미가 있으면 executeWTeleport가 wAutoTarget을 따로 세팅 → 자동평타는 계속 유효,
   //  하지만 atkTarget이 남지 않으므로 이후 먼 단검에 W를 타도 더미를 향해 추격하지 않음)
@@ -1754,7 +1773,7 @@ function update(rdt){
 
   // Effects
   updateEffectsArr(effects);
-  if(ghostPlaying)updateEffectsArr(ghostEffects); // 고스트 이펙트도 동일 규칙으로 진행
+  if(ghostPlaying)updateEffectsArr(ghostEffects, ghostSpeed); // 고스트 이펙트도 동일 규칙(+배속)으로 진행
 
   // Shake
   if(shakeEnabled&&shake.t>0){shake.t--;shake.x=(Math.random()-.5)*shake.m*2;shake.y=(Math.random()-.5)*shake.m*2}
@@ -2203,6 +2222,21 @@ let liveDag={}, liveProj={}, gidCounter=0; // 추적용 (열려있는 엔티티 
 let ghost=null;              // {ver,hz,frames,keys,dag,proj,fx}
 let ghostPlaying=false, ghostTime=0, ghostSeek=0;
 let ghostEffects=[], ghostDag=[], ghostProj=[], ghostFxIdx=0; // 재생용 고스트 엔티티
+let ghostSpeed=1, ghostKeyIdx=0; // 재생 배속 / 키입력 표시 진행 인덱스
+// 재생 중 키 입력을 화면 상단에 박스로 표시 (눌린 순서대로 흐름)
+const GK_LABEL={atk:'평타',eatk:'강화평타'};
+function showGhostKey(slot){
+  const wrap=document.getElementById('ghost-keys');
+  if(!wrap)return;
+  wrap.classList.add('show');
+  const el=document.createElement('div');
+  el.className='gk'+((slot==='eatk'||slot==='q2')?' gk-enh':(slot==='atk'?' gk-atk':''));
+  el.textContent=GK_LABEL[slot]||slot.toUpperCase();
+  wrap.appendChild(el);
+  while(wrap.children.length>8) wrap.removeChild(wrap.firstChild);
+  setTimeout(()=>{ el.remove(); if(!wrap.children.length)wrap.classList.remove('show'); },1400);
+}
+function clearGhostKeys(){ const wrap=document.getElementById('ghost-keys'); if(wrap){ wrap.innerHTML=''; wrap.classList.remove('show'); } }
 
 function setRecUI(){
   const b=document.getElementById('rec-btn');
@@ -2236,10 +2270,10 @@ function startPlayback(){
   if(!ghost){ log('재생할 콤보가 없습니다 (녹화하거나 코드를 불러오세요)'); return; }
   if(recording)stopRecording();
   ghostPlaying=true; ghostTime=0; ghostSeek=0;
-  ghostEffects=[]; ghostDag=[]; ghostProj=[]; ghostFxIdx=0;
-  setPlayUI(); log('▶ 콤보 재생');
+  ghostEffects=[]; ghostDag=[]; ghostProj=[]; ghostFxIdx=0; ghostKeyIdx=0; clearGhostKeys();
+  setPlayUI(); log(`▶ 콤보 재생${ghostSpeed!==1?` (${ghostSpeed}x)`:''}`);
 }
-function stopPlayback(){ ghostPlaying=false; ghostEffects=[]; ghostDag=[]; ghostProj=[]; setPlayUI(); }
+function stopPlayback(){ ghostPlaying=false; ghostEffects=[]; ghostDag=[]; ghostProj=[]; clearGhostKeys(); setPlayUI(); }
 
 // 인코딩: JSON → base64 (유니코드 안전)
 function encodeCombo(g){ try{return btoa(unescape(encodeURIComponent(JSON.stringify(g))));}catch(e){return '';} }
@@ -2295,8 +2329,9 @@ function recordEffect(e){
   return e;
 }
 // 이펙트 배열 진행 (실제·고스트 공용): t 증가 + 수명 종료 제거
-function updateEffectsArr(arr){
-  for(let i=arr.length-1;i>=0;i--){ arr[i].t++; if(arr[i].t>=arr[i].mt)arr.splice(i,1); }
+function updateEffectsArr(arr,mult){
+  const m=mult||1;
+  for(let i=arr.length-1;i>=0;i--){ arr[i].t+=m; if(arr[i].t>=arr[i].mt)arr.splice(i,1); }
 }
 // 재생 시 보간된 고스트 위치
 function ghostPose(){
@@ -2403,8 +2438,12 @@ function drawGhostAll(){
 // 재생 진행: ghostTime 전진 + 고스트 엔티티 갱신 + 종료 감지 (update에서 호출)
 function tickGuide(){
   if(!ghostPlaying||!ghost)return;
-  ghostTime+=tick;
+  ghostTime+=tick*ghostSpeed; // 배속 적용 (0.5x/0.3x 등 슬로우모션)
   const gt=ghostTime*1000;
+  // 도달한 키 입력 표시 (keys는 시각 오름차순)
+  while(ghostKeyIdx<ghost.keys.length && ghost.keys[ghostKeyIdx][0]<=gt){
+    showGhostKey(ghost.keys[ghostKeyIdx][1]); ghostKeyIdx++;
+  }
   // 도달한 이펙트 생성 (fx는 시각 오름차순)
   while(ghostFxIdx<ghost.fx.length && ghost.fx[ghostFxIdx][0]<=gt){
     const rec=ghost.fx[ghostFxIdx][1]; const e={};
@@ -2450,6 +2489,13 @@ function playPreset(name){
 (()=>{
   document.getElementById('rec-btn').addEventListener('click',()=>{ recording?stopRecording():startRecording(); });
   document.getElementById('play-btn').addEventListener('click',()=>{ ghostPlaying?stopPlayback():startPlayback(); });
+  document.querySelectorAll('.spd-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      ghostSpeed=parseFloat(b.dataset.spd);
+      document.querySelectorAll('.spd-btn').forEach(x=>x.classList.toggle('active',x===b));
+      log(`재생 배속 ${ghostSpeed}x`);
+    });
+  });
   document.getElementById('preset-7').addEventListener('click',()=>playPreset('7단비약'));
   document.getElementById('preset-9').addEventListener('click',()=>playPreset('9단비약'));
   document.getElementById('preset-12').addEventListener('click',()=>playPreset('12단비약'));
@@ -2661,7 +2707,8 @@ document.addEventListener('keydown',e=>{
   else if(c==='Digit4'||c==='Numpad4')slot='4';
   else slot=null;
   // 콤보 녹화: 스킬/행동 키 입력을 시각과 함께 기록
-  if(recording && slot && 'qwerdfas'.includes(slot)) recKeys.push([Math.round(recTime*1000),slot]);
+  // q는 castQ에서 q/q2로 구분 기록, w는 더미 적중 시에만 기록 → 여기선 제외
+  if(recording && slot && 'erdfas'.includes(slot)) recKeys.push([Math.round(recTime*1000),slot]);
   // 다른(비-W) 스킬 입력은 쌓여있던 2번째 W 선입력을 취소한다.
   if(slot==='q'||slot==='e'||slot==='r'||slot==='d'||slot==='f'||slot==='s'){ wBuffer2=null; wBuffer2Mouse=null; }
   if(slot==='q')tryOrBuffer(castQ);
