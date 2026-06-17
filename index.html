@@ -131,6 +131,7 @@ canvas{cursor:none;display:block;transform-origin:center center;will-change:tran
     </div>
   </div>
   <div style="margin-top:6px"><button id="cd-reset-btn" style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">쿨초기화 모드: OFF</button><div style="font-size:10px;color:#888;text-align:center;margin-top:2px">기본 단축키는 ~(물결표)</div></div>
+  <div style="margin-top:4px;font-size:12px"><label><input type="checkbox" id="r-reset-chk"> 궁극기만 쿨타임초기화</label></div>
   <div style="margin-top:6px"><button id="ui-collapse-btn" style="width:100%;padding:3px 0;border:1px solid #555;border-radius:4px;background:#222;color:#bbb;font-size:11px;cursor:pointer">▲ 옵션 접기</button></div>
   <div id="cdr-collapse">
   <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="bisaek-chk"> 비색단검 (공속 +0.21)</label></div>
@@ -297,6 +298,7 @@ const CDR_TABLE = {
 };
 let cdrStat = 0;   // 쿨감 스탯 (0~130, 5단위)
 let cdResetMode = false; // 쿨타임 초기화 모드
+let rOnlyReset = false;  // 궁극기(R)만 쿨타임 초기화
 let baseAsMult = 1.08;    // 기본 공격속도 (0.72 ~ 1.08)
 let bisaekActive = false; // 비색단검 활성화 (+0.21)
 let atkSpeedMult = 1.08;  // 최종 공격속도 (baseAsMult + 비색 보너스)
@@ -1293,7 +1295,7 @@ function castR(){
   P.rCastTimer=CONF.rCastTime;
   moveTarget=null;
   sfxR();
-  P.rCd=applyCdr(CONF.rCd);
+  P.rCd=rOnlyReset?0:applyCdr(CONF.rCd); // 궁극기만 쿨초기화 옵션 시 R 쿨다운 0
 
   const preDelay=0.2;   // 선딜 0.2초
   const postDelay=0.6;  // 후딜 0.6초
@@ -1889,9 +1891,9 @@ function draw(){
   // W range (when hovering W key? always subtle)
   // Attack range (A모드 시 강조 표시)
   if(aMode){
-    ctx.strokeStyle='rgba(80,160,255,.5)';ctx.lineWidth=2;
+    ctx.strokeStyle='rgba(80,152,160,.7)';ctx.lineWidth=2; // #5098A0 계열
     ctx.beginPath();ctx.arc(px,py,CONF.atkRange,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='rgba(80,160,255,.08)';
+    ctx.fillStyle='rgba(80,152,160,.12)';
     ctx.beginPath();ctx.arc(px,py,CONF.atkRange,0,Math.PI*2);ctx.fill();
   } else if(P.atkCd<=0&&!P.dashing&&!P.rCasting){
     ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;
@@ -3052,6 +3054,19 @@ document.getElementById('cd-reset-btn').addEventListener('click',()=>{
   }
   log(`쿨초기화 모드 ${cdResetMode?'ON':'OFF'}`);
 });
+
+// 궁극기만 쿨타임초기화 (R 사용 시 쿨다운 0)
+(()=>{
+  const chk=document.getElementById('r-reset-chk');
+  try{ rOnlyReset=localStorage.getItem('shoichiRReset')==='1'; }catch(e){}
+  chk.checked=rOnlyReset;
+  chk.addEventListener('change',e=>{
+    rOnlyReset=e.target.checked;
+    if(rOnlyReset)P.rCd=0; // 켜는 즉시 현재 R 쿨다운도 초기화
+    try{localStorage.setItem('shoichiRReset',rOnlyReset?'1':'0');}catch(e){}
+    log(`궁극기만 쿨초기화 ${rOnlyReset?'ON':'OFF'}`);
+  });
+})();
 
 // 공격속도 아래 옵션 UI 접기/펼치기
 (()=>{
