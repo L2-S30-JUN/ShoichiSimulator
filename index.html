@@ -222,7 +222,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 200
+      z-index: 300 /* 로비(280)보다 위 — 크레딧이 로비에서 열리므로 로비를 덮어야 한다 */
     }
 
     #credit-modal.show {
@@ -2060,11 +2060,18 @@
     //  → 2개가 차는 경우는 [아무 스킬, W] 또는 [W, W] 뿐. 비-W 스킬 입력 시 wBuffer2는 취소(null).
     let wBuffer2 = null;
     let wBuffer2Mouse = null;
-    const CD_BUFFER_THRESHOLD = 0.1; // 쿨다운 ≤ 이 값일 때 선입력 허용
     // 주의: W 후딜(wPostDelay)은 더 이상 isCasting에 포함하지 않는다 → 후딜 중 다른 스킬은 즉시 시전 가능.
     // (W만 후딜 중 입력 시 버퍼에 쌓아 후딜 종료 후 선입력으로 발동 — keydown W 분기에서 별도 처리)
     function isCasting() { return P.dashing || P.rCasting || P.qCasting || (P.eCasting && !P.eCanCancel); }
     function tryOrBuffer(fn) { if (isCasting()) { skillBuffer = fn; skillBufferMouse = { x: mouse.x, y: mouse.y }; } else { fn(); } }
+    // 현재 진행 중인 다른 스킬 시전의 남은 시전시간 (W 예외 선입력 판정용).
+    // 시전 중이 아니거나 남은 시간을 특정할 수 없는 상태(W 비행 등)면 -1 → 예외 미적용.
+    function otherCastRemainSec() {
+      if (P.rCasting) return Math.max(0, P.rCastTimer);
+      if (P.qCasting) return Math.max(0, P.qCastTimer);
+      if (P.eCasting && !P.eCanCancel) return Math.max(0, P.eCastTimer);
+      return -1;
+    }
     // W 선입력(독립 2칸): skillBuffer가 비었으면 1칸째, 차 있으면 2칸째(wBuffer2). 둘 다 차면 무시(3번째 불가).
     function bufferW() {
       const m = { x: mouse.x, y: mouse.y };
@@ -2080,7 +2087,6 @@
       else if (wBuffer2) { fn = wBuffer2; sm = wBuffer2Mouse; wBuffer2 = null; wBuffer2Mouse = null; }
       if (fn) { const ox = mouse.x, oy = mouse.y; mouse.x = sm.x; mouse.y = sm.y; bufferFlushing = true; fn(); bufferFlushing = false; mouse.x = ox; mouse.y = oy; }
     }
-    function bufferShortCd(fn, cd) { if (cd > 0 && cd <= CD_BUFFER_THRESHOLD) { skillBuffer = fn; skillBufferMouse = { x: mouse.x, y: mouse.y }; } }
     let aMode = false;       // A키 공격 모드 (사거리 표시 + 좌클릭 타겟팅)
     let shake = { x: 0, y: 0, t: 0, m: 0 };
     let shakeEnabled = false;
@@ -2397,6 +2403,9 @@
     let wPending = null; // {target, type}
 
     function castW() {
+      // 예외 선입력(쿨 만료 예정 W)의 프레임 경계 보정: 시전 종료 플러시가 쿨다운 감산보다
+      // 먼저 도는 프레임에서 잔여 쿨이 1프레임어치(≤0.05s) 남아 보이는 경우를 만료로 취급
+      if (bufferFlushing && P.wCd > 0 && P.wCd <= 0.05) P.wCd = 0;
       if (P.wCd > 0) { cooldownNotify('W'); return; }
       if (cdResetMode && P.wInternalCd > 0) { skillBuffer = castW; skillBufferMouse = { x: mouse.x, y: mouse.y }; return; }
       // W-W 간격 0.16s 유지: 후딜(0.15s) 종료로 플러시된 선입력 W는 0.16s까지 재버퍼 후 발동
@@ -5050,27 +5059,43 @@
       // 스킬/이동/공격 명령은 입력 지연 큐를 통과(원작 핑 재현). slot이 없으면(미바인딩 키) 무시.
       if (slot) deferInput(() => {
         if (slot === 'q' || slot === 'e' || slot === 'r' || slot === 'd' || slot === 'f' || slot === 's') { wBuffer2 = null; wBuffer2Mouse = null; wDoubleBufR = false; }
-        if (slot === 'q') tryOrBuffer(castQ);
+        // 원작 재현: 쿨다운 중인 스킬은 다른 스킬 시전 중이라도 선입력되지 않고 준비 안 됨 경고만 뜬다
+        //  → 선입력 자격 심사를 발동 시점이 아닌 "입력 시점"의 쿨다운으로 판정 (버퍼는 쿨이 돈 스킬만 받는다)
+        if (slot === 'q') { if (P.qCd > 0) cooldownNotify('Q'); else tryOrBuffer(castQ); }
         else if (slot === 'w') {
-          // W는 2회까지 선입력 가능. 시전 중(R/대시/Q/E)이거나 W 후딜 중이면 독립 2칸 버퍼에 쌓고, 아니면 즉시 시전.
+          // W는 쿨이 돌아 있으면 2회까지 선입력 가능. 시전 중(R/Q/E)이거나 W 후딜 중이면 독립 2칸 버퍼에 쌓고, 아니면 즉시 시전.
           // (다른 스킬은 후딜 중 즉시 나가지만, W만은 후딜 종료 후 선입력으로 발동)
-          if (isCasting() || P.qCasting || P.eCasting || P.wPostDelay > 0) {
+          // W 비행(대시) 중 W 재입력은 아래 쿨다운 게이트에 걸린다 — 회수로 쿨이 초기화된 후(착지 후딜)부터 선입력 가능 (원작 동일)
+          if (P.wCd > 0) {
+            // 비약 전용 예외: 다른 스킬 시전 중이고, 그 시전이 끝나는 시점에 W 쿨이 끝나 있을 예정이면
+            // 1회짜리 선입력으로 허용한다. W 2칸 선입력 로직은 이 경로에 적용하지 않으며,
+            // 재입력 시 덮어쓰기 → 가장 마지막에 커서로 지정한 대상에게만 비약한다.
+            const rem = otherCastRemainSec();
+            if (rem >= 0 && P.wCd <= rem) {
+              skillBuffer = castW; skillBufferMouse = { x: mouse.x, y: mouse.y };
+              wBuffer2 = null; wBuffer2Mouse = null; wDoubleBufR = false;
+            }
+            else cooldownNotify('W');
+          }
+          else if (isCasting() || P.qCasting || P.eCasting || P.wPostDelay > 0) {
             // 후딜 중 W 선입력: 진행 중인 착지 자동평타를 취소(W가 우선) → 후딜 종료 후 onWPostDelayEnd가 W 발동
             if (P.wPostDelay > 0) { P.atkWindup = false; P.atkWindupTarget = null; P.wAutoTarget = null; }
             bufferW();
           }
           else tryOrBuffer(castW);
         }
-        else if (slot === 'e') tryOrBuffer(castE);
-        else if (slot === 'r') tryOrBuffer(castR);
+        else if (slot === 'e') { if (P.eCd > 0) cooldownNotify('E'); else tryOrBuffer(castE); }
+        else if (slot === 'r') { if (P.rCd > 0) cooldownNotify('R'); else tryOrBuffer(castR); }
         else if (slot === 'd') {
+          if (P.dCd > 0) cooldownNotify('D');
           // R 시전 중 D2(2차)는 즉시 사용 불가 → 버퍼에 넣어 R 종료 후 시전 (QWE 선입력과 동일한 로직)
-          if (P.rCasting && P.dPhase === 1) { skillBuffer = castD; skillBufferMouse = { x: mouse.x, y: mouse.y }; }
+          else if (P.rCasting && P.dPhase === 1) { skillBuffer = castD; skillBufferMouse = { x: mouse.x, y: mouse.y }; }
           else castD();
         }
         else if (slot === 'f') {
+          if (P.blinkCd > 0) cooldownNotify('F');
           // E 도중 블링크: 20프레임(ewbCancelReady) 전까진 버퍼만 → 전용 스케줄이 20f에 E 캔슬 후 발사
-          if (P.eCasting && !P.ewbCancelReady) { skillBuffer = castBlink; skillBufferMouse = { x: mouse.x, y: mouse.y }; }
+          else if (P.eCasting && !P.ewbCancelReady) { skillBuffer = castBlink; skillBufferMouse = { x: mouse.x, y: mouse.y }; }
           else tryOrBuffer(castBlink);
         }
         else if (slot === 'a') {
