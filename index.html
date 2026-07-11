@@ -22,6 +22,11 @@
       box-sizing: border-box
     }
 
+    /* 연막 시야 제한 중: 캔버스 밖(기울어진 캔버스 주변 여백)도 연막 색으로 암전 */
+    body.smoke-dark {
+      background: #06070a !important
+    }
+
     body {
       background: #111;
       display: flex;
@@ -4448,6 +4453,8 @@
         smokeZone.t += dt;
         if (smokeZone.t >= smokeZone.mt) smokeZone = null;
       }
+      // 시야 제한 중엔 캔버스 밖 페이지 배경도 암전 (기울어진 캔버스 주변 밝은 띠 방지)
+      document.body.classList.toggle('smoke-dark', smokeVisionActive());
     }
 
     function vquizUpdateHud(state) { // state: 'ok' | 'fail' | undefined(진행 중)
@@ -4552,6 +4559,7 @@
       if (!vquizMode) return;
       vquizMode = false; vquizSmokeVar = false;
       smokeProj = null; smokeZone = null;
+      document.body.classList.remove('smoke-dark'); // 연막 중 나가도 페이지 암전 해제
       cancelScheduledByTag('VQ');
       cancelScheduledByTag('VQF');
       walls = WALLS_DEFAULT; // 일반 연습모드 벽 복원
