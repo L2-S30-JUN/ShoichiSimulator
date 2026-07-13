@@ -750,7 +750,7 @@
     }
 
     #vquiz-hud,
-    #chal-hud {
+    #chal-hud /* [보류] 현우 E 피하기 , #hw-hud */ {
       position: fixed;
       top: 16px;
       left: 50%;
@@ -767,14 +767,14 @@
     }
 
     #vquiz-hud .rnd,
-    #chal-hud .rnd {
+    #chal-hud .rnd /* [보류] , #hw-hud .rnd */ {
       font-size: 12px;
       color: #8d8683;
       letter-spacing: 1px
     }
 
     #vquiz-hud .prog,
-    #chal-hud .prog {
+    #chal-hud .prog /* [보류] , #hw-hud .prog */ {
       font-size: 17px;
       font-weight: bold;
       color: #e8e2df;
@@ -793,20 +793,46 @@
       letter-spacing: .5px
     }
 
-    #vquiz-hud.ok {
+    /* 챌린지 빠른 다시 시작 버튼 — 화면 우측 중앙, 챌린지 중에만 표시 */
+    #chal-restart-btn {
+      -webkit-appearance: none;
+      appearance: none;
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 60;
+      display: none;
+      padding: 11px 16px;
+      background: rgba(8, 7, 7, .72);
+      border: 1px solid #3c3835;
+      border-radius: 6px;
+      color: #e8e2df;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      cursor: pointer
+    }
+
+    #chal-restart-btn:hover {
+      border-color: #c1372c;
+      color: #e04a3f
+    }
+
+    #vquiz-hud.ok /* [보류] , #hw-hud.ok */ {
       border-color: #c1372c;
       box-shadow: 0 0 14px rgba(193, 55, 44, .3)
     }
 
-    #vquiz-hud.ok .prog {
+    #vquiz-hud.ok .prog /* [보류] , #hw-hud.ok .prog */ {
       color: #e04a3f
     }
 
-    #vquiz-hud.fail {
+    #vquiz-hud.fail /* [보류] , #hw-hud.fail */ {
       border-color: #666
     }
 
-    #vquiz-hud.fail .prog {
+    #vquiz-hud.fail .prog /* [보류] , #hw-hud.fail .prog */ {
       color: #9a938f
     }
 
@@ -1404,6 +1430,9 @@
       3</span></div>
   <div id="chal-hud"><span class="rnd" id="chal-kills">준비하세요</span><span class="prog" id="chal-time">0.00</span><span
       class="stats" id="chal-stats">공속 1.29 · 쿨감 50% 고정</span></div>
+  <button id="chal-restart-btn" title="처음부터 다시 시작 (카운트다운부터)">다시 시작</button>
+  <!-- [보류] 현우 E 피하기 HUD
+  <div id="hw-hud"><span class="rnd" id="hw-round">라운드 1</span><span class="prog" id="hw-prog">회피 0 · 벽꿍 0</span></div> -->
   <div id="chal-modal">
     <div class="box">
       <div class="ttl">🏆 챌린지 클리어!</div>
@@ -1605,6 +1634,8 @@
         </div>
         <button id="mode-smoke-btn">연막무스 파훼 시뮬레이터</button>
         <button id="mode-vquiz-btn">V자 각 퀴즈</button>
+        <!-- [보류] 현우 E 피하기 모드 — 재활성화 시 아래 버튼과 JS의 [보류] 지점들을 함께 해제
+        <button id="mode-hwe-btn">현우 E 피하기</button> -->
       </div>
       <a id="lobby-update-link" href="https://www.youtube.com/watch?v=eUCUH4sENAM" target="_blank"
         rel="noopener">쇼이치 시뮬레이터 v1.7 업데이트 내역</a>
@@ -3205,6 +3236,7 @@
       tickScheduler(tick);
       updateVquizSmoke(tick); // 연막무스 파훼: 연막탄 비행·연막 지속시간 진행
       updateChallenge(tick);  // 챌린지: 카운트다운·기록 시간 진행
+      // [보류] updateHwMode(tick); // 현우 E 피하기: 접근·돌진·끌고가기·벽꿍 판정
       // Timers
       if (P.atkCd > 0) P.atkCd -= tick;
       if (P.qCd > 0) P.qCd -= tick;
@@ -3423,7 +3455,7 @@
         if (d.hitFlash > 0) d.hitFlash--;
         if (d.slowTimer > 0) { d.slowTimer -= tick; if (d.slowTimer <= 0) d.slow = 0 }
         if (d.eMarkTimer > 0) { d.eMarkTimer -= tick; if (d.eMarkTimer <= 0) { d.eMark = false } }
-        if (dummyMoveMode && !vquizMode && !chalMode && d.alive) {
+        if (dummyMoveMode && !vquizMode && !chalMode /* [보류] && !hwMode */ && d.alive) {
           // 걷기(랜덤 방향)와 멈춤을 랜덤 길이로 번갈아 — 서고 꺾는 실제 무빙 흉내
           d.wanderT = (d.wanderT || 0) - tick;
           if (d.wanderT <= 0) {
@@ -3584,6 +3616,9 @@
         ctx.fillText('출현 위치', p.x, p.y - 0.5 * PX - 8);
         ctx.restore();
       }
+
+      // [보류] 현우 E 피하기: 현우 식별 표식·돌진 잔상·기절 표시
+      // if (hwMode) drawHwMode();
 
       // ---- PROJECTILES ----
       drawProjectilesArr(projectiles);
@@ -4459,7 +4494,7 @@
       lastTime = now;
       // 챌린지 일시정지: Esc 메뉴·설정·결과창이 열려 있는 동안 게임 전체를 정지 —
       // 타이머만 멈추면 쿨다운 회복을 공짜로 얻는 악용이 가능하므로 시뮬레이션째 멈춘다
-      if (chalMode && document.querySelector('#esc-menu.show,#settings-modal.show,#chal-modal.show')) { draw(); return; }
+      if ((chalMode /* [보류] || hwMode */) && document.querySelector('#esc-menu.show,#settings-modal.show,#chal-modal.show')) { draw(); return; }
       update(realDt);
       draw();
     }
@@ -4565,12 +4600,13 @@
       e.target.blur(); // 포커스가 남으면 Space(카메라 키)로 버튼이 재클릭됨
       exitVquizMode(); // 퀴즈·챌린지 모드에서 로비를 거쳐 일반 연습으로 들어오는 경우 필드·UI 복원
       exitChalMode();
+      // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       if (!maybeShowF11Notice()) lockPointer();
     });
     document.getElementById('esc-resume').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); lockPointer(); });
     document.getElementById('esc-settings').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); syncCamFixedChk(); document.getElementById('settings-modal').classList.add('show'); });
-    document.getElementById('esc-lobby').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); inLobby = true; lobbyEl.style.display = 'flex'; exitVquizMode(); exitChalMode(); });
+    document.getElementById('esc-lobby').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); inLobby = true; lobbyEl.style.display = 'flex'; exitVquizMode(); exitChalMode(); /* [보류] exitHwMode(); */ });
     // 메뉴 바깥(어두운 배경) 클릭 = 계속하기
     escMenuEl.addEventListener('mousedown', e => { if (e.target === escMenuEl) { escMenuEl.classList.remove('show'); lockPointer(); } });
     // ============================================================
@@ -4755,6 +4791,7 @@
     document.getElementById('mode-vquiz-btn').addEventListener('click', e => {
       e.target.blur();
       exitChalMode();
+      // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       if (!maybeShowF11Notice()) lockPointer();
       enterVquizMode();
@@ -4763,6 +4800,7 @@
     document.getElementById('mode-smoke-btn').addEventListener('click', e => {
       e.target.blur();
       exitChalMode();
+      // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       if (!maybeShowF11Notice()) lockPointer();
       enterVquizMode(true); // 연막무스 파훼 변형
@@ -4850,6 +4888,18 @@
       cancelScheduledByTag('CH');
       chalKills = 0; chalTimeMs = 0; chalPhase = 1; chalCntT = CHAL_COUNT_SEC;
       vquizClearField();
+      // 이전 판의 잔류 입력·시전 상태 완전 폐기 — 클리어 순간(결과창 정지 직전) 눌러둔 키가
+      // 지연 입력 큐·선입력 버퍼에 얼어 있다가 재시작 직후 한꺼번에 발동하는 버그 방지 (Q·투척 오발)
+      inputDelayQueue.length = 0;
+      skillBuffer = null; skillBufferMouse = null; wBuffer2 = null; wBuffer2Mouse = null; wDoubleBufR = false;
+      wPending = null; dPending = null; dPendingInstant = false; aMode = false;
+      P.atkPending = false; P.atkPendingTarget = null; P.atkWindup = false; P.atkWindupTarget = null;
+      P.swinging = false; P.hopping = false;
+      P.qCasting = false; P.qCastTimer = 0;
+      P.eCasting = false; P.eCanCancel = false; P.eHopActive = false; P.eHop2Active = false; P.eMoveLockTimer = 0; P.ewbCancelReady = false; P._eCastId++;
+      P.rCasting = false; P.rCastTimer = 0;
+      P.dashing = false; P.dashTarget = null; P.wPostDelay = 0; P.wMoveLock = 0; P.wRecastLock = 0;
+      P.locked = false; P.lockTimer = 0;
       const cx = (WORLD_X0 + WORLD_X1) / 2, cy = (WORLD_Y0 + WORLD_Y1) / 2;
       P.x = cx; P.y = cy; moveTarget = null; centerCameraOn(P.x, P.y);
       // 시작 시 쿨 초기화 — 카운트다운 중 미리 쓰는 스킬은 실제 쿨을 소모한다 (선택의 영역)
@@ -4875,6 +4925,7 @@
       walls = []; // 퀴즈와 동일하게 벽 없이 진행
       document.getElementById('cdr-ui').style.display = 'none';
       chalHudEl.style.display = 'flex';
+      document.getElementById('chal-restart-btn').style.display = 'block';
       // 고정 스탯 시각화 — 실제 적용값으로 표기 (applyCdr가 챌린지에서 50% 고정)
       document.getElementById('chal-stats').textContent = `공속 ${atkSpeedMult.toFixed(2)} · 쿨감 50% 고정`;
       log('챌린지 모드: 공속 1.29 · 쿨감 50% 고정');
@@ -4892,6 +4943,7 @@
       walls = WALLS_DEFAULT;
       document.getElementById('cdr-ui').style.display = '';
       chalHudEl.style.display = 'none';
+      document.getElementById('chal-restart-btn').style.display = 'none';
       document.getElementById('chal-modal').classList.remove('show');
       vquizClearField();
       spawnDummy(DESIGN_W / 2, DESIGN_H_Q / 2 - 130); // 일반 연습모드 기본 더미 복원
@@ -4971,6 +5023,14 @@
       chalStartRun();
       lockPointer();
     });
+    // 빠른 다시 시작 (우측 버튼): 진행 중 언제든 카운트다운부터 재시작
+    document.getElementById('chal-restart-btn').addEventListener('click', e => {
+      e.target.blur(); // 포커스가 남으면 Space(카메라 키)로 재클릭됨
+      if (!chalMode) return;
+      document.getElementById('chal-modal').classList.remove('show');
+      chalStartRun();
+      lockPointer();
+    });
     document.getElementById('chal-lobby-btn').addEventListener('click', e => {
       e.target.blur();
       exitChalMode();
@@ -4979,6 +5039,7 @@
     document.getElementById('mode-chal-btn').addEventListener('click', e => {
       e.target.blur();
       exitVquizMode();
+      // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       lockPointer(); // 챌린지는 F11 안내 팝업 없이 바로 시작 (카운트다운 방해 방지)
       enterChalMode();
@@ -4994,6 +5055,256 @@
     document.getElementById('lb-close-btn').addEventListener('click', e => { e.target.blur(); lbModalEl.classList.remove('show'); });
     // 모달 바깥(어두운 배경) 클릭 = 닫기
     lbModalEl.addEventListener('mousedown', e => { if (e.target === lbModalEl) lbModalEl.classList.remove('show'); });
+
+    // ============================================================
+    // [보류] 현우 E 피하기 모드 (선빵필승 벽꿍 회피 연습) — 비활성화 (코드 보존)
+    // ============================================================
+    // 재활성화 방법:
+    //  ① 아래 블록 주석(/* [보류] ~ [보류 끝] */)을 해제
+    //  ② 로비 버튼(#mode-hwe-btn)·HUD(#hw-hud)의 HTML 주석 해제
+    //  ③ CSS의 "[보류] , #hw-hud" 셀렉터 주석 해제
+    //  ④ update()의 updateHwMode, draw()의 drawHwMode, loop()의 hwMode 일시정지 조건,
+    //     dispatchGameInput의 hwPlayerLocked 게이트, 도구 키(쿨초·더미 3/4)와 dummyMoveMode의 && !hwMode,
+    //     로비 시작/Esc 로비/각 모드 버튼의 exitHwMode() 호출 — 전부 "[보류]" 검색으로 찾아 해제
+    /* [보류]
+    // 원작 수치(나무위키 '현우' 문서): E '선빵필승' — 지정한 방향으로 5m 돌진하는 논타겟 스킬.
+    // 적과 부딪히면 밀어내고(적중 지점부터 고정 거리, 어디서 맞아도 밀리는 거리는 동일),
+    // 밀어낸 적이 벽에 부딪히면 1.2초 기절. 선딜·후딜 거의 없음, 벽은 못 넘음.
+    // 논타겟이라 은신 중에도 적중한다 — 회피는 오직 "위치 이동"(비약·은신 재사용·블링크)으로만 가능.
+    // 돌진 속도·밀어내는 거리는 위키에 수치 명시가 없어 체감 기준 추정치(튜닝 상수).
+    // 매 라운드: 플레이어 등 뒤에 벽 하나(일반모드와 같은 두 대각선 각도), 현우는 실제 더미로
+    // 스폰되어(비약 W·은신 2차 D의 대상이 된다) 걸어서 접근 → 랜덤 대기 → 조준 이펙트 없이 돌진.
+    // 안 맞으면 회피 성공, 벽꿍 기절이면 실패.
+    const HW_DASH_RANGE = 5 * PX;    // 돌진 사거리 5m (원작)
+    const HW_DASH_SPEED = 12 * PX;   // 돌진 속도 (추정 — 조준 이펙트가 없으므로 돌진 자체를 보고 반응할 시간을 준다)
+    const HW_CARRY_DIST = 3 * PX;    // 적중 후 밀어내는 고정 거리 (추정 3m)
+    const HW_STUN_DUR = 1.2;         // 벽꿍 기절 1.2초 (원작)
+    const HW_WALK_SPEED = 3.55 * PX; // 현우 이동 속도 3.55m/s (원작 기본 정보)
+    const HW_SPAWN_MIN = 5.5 * PX, HW_SPAWN_MAX = 7 * PX;         // 라운드 시작 시 현우 거리 — 걸어서 접근한다
+    const HW_STANDOFF_MIN = 3.6 * PX, HW_STANDOFF_MAX = 4.6 * PX; // 돌진 전 대치 거리 (사거리 5m 안, 라운드마다 랜덤)
+    const HW_WAIT_MIN = 0.15, HW_WAIT_MAX = 1.8; // 대치 후 돌진까지 랜덤 대기 — 타이밍 예측 불가
+    const HW_WALL_MIN = 1.6 * PX, HW_WALL_MAX = 2.4 * PX; // 플레이어 등 뒤 벽 거리 (밀어내기 3m보다 짧아 적중 시 벽꿍 보장)
+    // 벽 각도는 일반 연습모드(WALLS_DEFAULT)와 동일한 두 대각선 기울기만 사용 (slope -1.04 / +1.02)
+    const HW_WALL_ANGLES = [Math.atan2(-104, 100), Math.atan2(102, 100)];
+
+    let hwMode = false;
+    let hw = null;            // 현우 상태 {x,y,r,angle,phase:'walk'|'wait'|'dash'|'done',standoff,waitT,dashA,dashLeft,dashX0,dashY0,carrying,dm(더미 참조)}
+    let hwRound = 0, hwOk = 0, hwFail = 0, hwStreak = 0;
+    let hwStunT = 0;          // 플레이어 벽꿍 기절 남은 시간
+    let hwAdvancing = false;  // 라운드 결과 확정 후 다음 라운드 대기 중
+    const hwHudEl = document.getElementById('hw-hud');
+
+    // 끌려가는 중·기절 중 = 플레이어 조작 불가 (원작: 에어본으로 끌려가는 동안 행동 불가)
+    function hwPlayerLocked() { return hwMode && (hwStunT > 0 || (hw && hw.carrying)); }
+
+    function hwUpdateHud(state) { // state: 'ok' | 'wall' | 'push' | undefined(진행 중)
+      document.getElementById('hw-round').textContent = `라운드 ${hwRound} · 연속 회피 ${hwStreak}`;
+      document.getElementById('hw-prog').textContent =
+        state === 'ok' ? '회피 성공!' : state === 'wall' ? '벽꿍! 기절 1.2초' : state === 'push' ? '밀려남! (벽꿍은 면함)' : `회피 ${hwOk} · 벽꿍 ${hwFail}`;
+      hwHudEl.classList.toggle('ok', state === 'ok');
+      hwHudEl.classList.toggle('fail', state === 'wall');
+    }
+
+    function hwStartRound() {
+      cancelScheduledByTag('HW');
+      hwRound++; hwAdvancing = false; hwStunT = 0; hw = null;
+      vquizClearField(); // 이전 라운드의 현우 더미·투사체 정리
+      skillBuffer = null; skillBufferMouse = null; wBuffer2 = null; wBuffer2Mouse = null;
+      wPending = null; dPending = null; aMode = false;
+      // 플레이어는 맵 정중앙에서 시작, 은신·쿨다운 초기화 (매 라운드 같은 조건)
+      const cx = (WORLD_X0 + WORLD_X1) / 2, cy = (WORLD_Y0 + WORLD_Y1) / 2;
+      P.x = cx; P.y = cy; moveTarget = null; centerCameraOn(P.x, P.y);
+      P.qCd = 0; P.wCd = 0; P.eCd = 0; P.rCd = 0; P.blinkCd = 0; P.dCd = 0;
+      P.wInternalCd = 0; P.eInternalCd = 0; P.rInternalCd = 0;
+      P.dActive = false; P.dTimer = 0; P.dPhase = 0; P.dRecastTimer = 0;
+      // 벽: 일반모드와 동일한 두 대각선 각도 중 하나를 골라 플레이어 곁 랜덤한 쪽에 배치
+      const wa = HW_WALL_ANGLES[Math.floor(Math.random() * HW_WALL_ANGLES.length)];
+      const n = wa + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2; // 플레이어 → 벽 방향 (벽의 법선)
+      const wallD = HW_WALL_MIN + Math.random() * (HW_WALL_MAX - HW_WALL_MIN);
+      const wcx = cx + Math.cos(n) * wallD, wcy = cy + Math.sin(n) * wallD;
+      const hl = 3.5 * PX; // 총 길이 7m
+      walls = [{ x1: wcx - Math.cos(wa) * hl, y1: wcy - Math.sin(wa) * hl, x2: wcx + Math.cos(wa) * hl, y2: wcy + Math.sin(wa) * hl, hw: 28 }];
+      // 현우: 벽 반대편에서 걸어서 접근 (±34° 흔들림 — 매 라운드 접근 각이 달라진다)
+      const spawnA = n + Math.PI + (Math.random() - 0.5) * 1.2;
+      const spawnD = HW_SPAWN_MIN + Math.random() * (HW_SPAWN_MAX - HW_SPAWN_MIN);
+      // 현우는 실제 더미로 스폰 — 비약(W)·은신 2차(D)·평타의 대상이 된다 (탈출 수단 = 현우 본인)
+      spawnDummy(cx + Math.cos(spawnA) * spawnD, cy + Math.sin(spawnA) * spawnD);
+      const dm = dummies[dummies.length - 1];
+      hw = {
+        x: dm.x, y: dm.y, r: dm.r, angle: ang(dm, P), phase: 'walk',
+        standoff: HW_STANDOFF_MIN + Math.random() * (HW_STANDOFF_MAX - HW_STANDOFF_MIN),
+        waitT: HW_WAIT_MIN + Math.random() * (HW_WAIT_MAX - HW_WAIT_MIN),
+        dashA: 0, dashLeft: 0, dashX0: dm.x, dashY0: dm.y, carrying: false, dm
+      };
+      hwUpdateHud();
+    }
+
+    // 라운드 결과 확정 → 잠시 결과 표시 후 다음 라운드
+    function hwFinishRound(result) { // 'ok' | 'wall' | 'push'
+      if (hwAdvancing) return;
+      hwAdvancing = true;
+      if (hw) hw.phase = 'done';
+      if (result === 'ok') { hwOk++; hwStreak++; playSfx('daggerpick'); }
+      else if (result === 'wall') { hwFail++; hwStreak = 0; playSfx('nodagger'); }
+      hwUpdateHud(result);
+      schedule(result === 'wall' ? HW_STUN_DUR + 0.6 : 1.0, () => { if (hwMode) hwStartRound(); }, 'HW');
+    }
+
+    // update()에서 매 프레임 호출 — 접근 → 랜덤 대기 → 돌진 → 적중 시 끌고가기 → 벽꿍/밀림 판정
+    function updateHwMode(dt) {
+      if (!hwMode) return;
+      // 기절·끌려가는 중에는 이동 명령·선입력 무효 (조작 잠금은 dispatchGameInput에서 차단)
+      if (hwPlayerLocked()) {
+        moveTarget = null; P.atkTarget = null;
+        skillBuffer = null; skillBufferMouse = null; wBuffer2 = null; wBuffer2Mouse = null;
+      }
+      if (hwStunT > 0) hwStunT -= dt;
+      if (!hw) return;
+      if (hw.phase !== 'done') hwTick(dt);
+      // 현우 더미 위치 동기화 — 대상 지정(W·D·평타)·렌더링이 항상 현우의 실제 위치를 본다
+      if (hw.dm && hw.dm.alive) { hw.dm.x = hw.x; hw.dm.y = hw.y; }
+    }
+
+    function hwTick(dt) {
+      if (hw.phase === 'walk') {
+        // 대치 거리까지 걸어서 접근 (원작 이속 3.55m/s) — 조준 이펙트 없이 행동만으로 판단한다
+        hw.angle = ang(hw, P);
+        if (dist(hw, P) > hw.standoff) {
+          hw.x += Math.cos(hw.angle) * HW_WALK_SPEED * dt;
+          hw.y += Math.sin(hw.angle) * HW_WALK_SPEED * dt;
+        } else hw.phase = 'wait';
+        return;
+      }
+      if (hw.phase === 'wait') {
+        // 대치: 플레이어를 바라보며 랜덤 시간 대기 → 예고 없이 돌진 (타이밍 완전 랜덤)
+        hw.angle = ang(hw, P);
+        hw.waitT -= dt;
+        const d = dist(hw, P);
+        if (d > hw.standoff + 0.8 * PX) { hw.phase = 'walk'; return; } // 플레이어가 거리를 벌리면 재접근
+        if (hw.waitT <= 0) {
+          if (d > HW_DASH_RANGE) { hw.phase = 'walk'; return; } // 사거리 밖 — 더 접근하면 즉시 돌진
+          hw.phase = 'dash'; hw.dashA = hw.angle; hw.dashLeft = HW_DASH_RANGE;
+          hw.dashX0 = hw.x; hw.dashY0 = hw.y;
+          playSfx('Q_missed'); // 돌진 휘두르는 바람 소리 재사용
+        }
+        return;
+      }
+      if (hw.phase !== 'dash') return;
+      // phase === 'dash' — 6px 서브스텝으로 이동하며 충돌 검사 (터널링 방지)
+      let step = Math.min(HW_DASH_SPEED * dt, hw.dashLeft);
+      const ca = Math.cos(hw.dashA), sa = Math.sin(hw.dashA);
+      while (step > 0) {
+        const s = Math.min(6, step);
+        hw.x += ca * s; hw.y += sa * s;
+        hw.dashLeft -= s; step -= s;
+        if (hw.carrying) {
+          // 플레이어를 현우 앞에 붙여 끌고 간다
+          P.x = hw.x + ca * (hw.r + P.r); P.y = hw.y + sa * (hw.r + P.r);
+          const wallHit = wallBlock(P.x, P.y, P.r) ||
+            P.x <= WORLD_X0 + P.r || P.x >= WORLD_X1 - P.r || P.y <= WORLD_Y0 + P.r || P.y >= WORLD_Y1 - P.r;
+          if (wallHit) { // ── 벽꿍! ──
+            pushOutOfWalls(P, P.r);
+            P.x = clamp(P.x, WORLD_X0 + P.r, WORLD_X1 - P.r); P.y = clamp(P.y, WORLD_Y0 + P.r, WORLD_Y1 - P.r);
+            hwStunT = HW_STUN_DUR;
+            shake.t = 8; shake.m = 5;
+            playSfx('attackhit');
+            recordEffect({ type: 'rglow', x: P.x, y: P.y, r: 44, t: 0, mt: 26 });
+            hwFinishRound('wall');
+            return;
+          }
+          if (hw.dashLeft <= 0) { hwFinishRound('push'); return; } // 밀기만 하고 벽 없음
+        } else {
+          // 현우 자신이 벽·맵 경계에 막히면 돌진 종료 (원작: 벽은 못 넘음)
+          if (wallBlock(hw.x, hw.y, hw.r) ||
+            hw.x <= WORLD_X0 + hw.r || hw.x >= WORLD_X1 - hw.r || hw.y <= WORLD_Y0 + hw.r || hw.y >= WORLD_Y1 - hw.r) {
+            hw.x -= ca * s; hw.y -= sa * s;
+            hwFinishRound('ok');
+            return;
+          }
+          // 플레이어 적중 검사 — 논타겟 돌진이라 은신 중에도 맞는다 (원작).
+          // 단, 판정은 돌진 전방만: 비약·은신 2차로 현우 "뒤"로 넘어간 경우는 잡히지 않는다.
+          const rx = P.x - hw.x, ry = P.y - hw.y;
+          if (rx * ca + ry * sa > 0 && Math.hypot(rx, ry) <= hw.r + P.r) {
+            hw.carrying = true;
+            hw.dashLeft = HW_CARRY_DIST; // 적중 지점부터 고정 거리만큼 밀어냄 (원작: 어디서 맞아도 동일)
+            moveTarget = null; P.atkTarget = null;
+            playSfx('attackhit');
+          }
+          if (!hw.carrying && hw.dashLeft <= 0) { hwFinishRound('ok'); return; } // 허공 돌진 종료 = 회피 성공
+        }
+      }
+    }
+
+    // draw()에서 호출 (카메라 변환 내부) — 더미로 그려진 현우 위에 식별 표식·돌진 잔상·기절 표시를 덧그린다
+    // (조준 텔레그래프는 없다 — 원작처럼 현우의 행동만 보고 판단한다)
+    function drawHwMode() {
+      if (hw && hw.dm && hw.dm.alive) {
+        // 돌진 잔상 (돌진 시작을 읽는 유일한 시각 신호)
+        if (hw.phase === 'dash') {
+          ctx.save();
+          const g = ctx.createLinearGradient(hw.dashX0, hw.dashY0, hw.x, hw.y);
+          g.addColorStop(0, 'rgba(224,120,50,0)'); g.addColorStop(1, 'rgba(224,120,50,.35)');
+          ctx.strokeStyle = g; ctx.lineWidth = hw.r * 2; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(hw.dashX0, hw.dashY0); ctx.lineTo(hw.x, hw.y); ctx.stroke();
+          ctx.restore();
+        }
+        // 현우 식별: 주황 틴트 + 붉은 머리띠 + 이름 (피격 플래시 중엔 틴트를 생략해 타격감 유지)
+        if (!(hw.dm.hitFlash > 0)) {
+          ctx.fillStyle = 'rgba(224,132,50,.4)';
+          ctx.beginPath(); ctx.arc(hw.x, hw.y, hw.r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.strokeStyle = '#c1372c'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(hw.x, hw.y, hw.r - 4, Math.PI + 0.5, Math.PI * 2 - 0.5); ctx.stroke();
+        ctx.fillStyle = '#e8a55f'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('현우', hw.x, hw.y - hw.r - 8);
+      }
+      // 플레이어 기절 표시 — 머리 위 회전 별 3개 + '기절'
+      if (hwStunT > 0) {
+        const t = performance.now() / 1000;
+        ctx.save();
+        ctx.fillStyle = '#ffd44d';
+        for (let i = 0; i < 3; i++) {
+          const a = t * 4 + i * Math.PI * 2 / 3;
+          const sx = P.x + Math.cos(a) * 16, sy = P.y - P.r - 16 + Math.sin(a) * 5;
+          ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('기절', P.x, P.y - P.r - 30);
+        ctx.restore();
+      }
+    }
+
+    function enterHwMode() {
+      hwMode = true;
+      hwRound = 0; hwOk = 0; hwFail = 0; hwStreak = 0;
+      if (cdResetMode) document.getElementById('cd-reset-btn').click(); // 라운드마다 직접 초기화하므로 쿨초 모드는 해제
+      setDummyMode(null);
+      document.getElementById('cdr-ui').style.display = 'none';
+      hwHudEl.style.display = 'flex';
+      log('현우 E 피하기: 현우에게 비약(W)·은신 재사용(D)·블링크를 써서 돌진을 피하세요 (은신만으론 안 피해집니다)');
+      hwStartRound();
+    }
+
+    function exitHwMode() {
+      if (!hwMode) return;
+      hwMode = false; hw = null; hwStunT = 0; hwAdvancing = false;
+      cancelScheduledByTag('HW');
+      walls = WALLS_DEFAULT;
+      document.getElementById('cdr-ui').style.display = '';
+      hwHudEl.style.display = 'none';
+      vquizClearField();
+      spawnDummy(DESIGN_W / 2, DESIGN_H_Q / 2 - 130); // 일반 연습모드 기본 더미 복원
+    }
+
+    document.getElementById('mode-hwe-btn').addEventListener('click', e => {
+      e.target.blur();
+      exitVquizMode();
+      exitChalMode();
+      inLobby = false; lobbyEl.style.display = 'none';
+      if (!maybeShowF11Notice()) lockPointer();
+      enterHwMode();
+    });
+    [보류 끝] */
 
     // 화면(client) 좌표 → 월드 좌표 변환 + 가장자리 스크롤 갱신 (잠금 시 가상 커서, 해제 시 OS 커서 공용)
     function updateMouseFromClient(px, py) {
@@ -5201,6 +5512,8 @@
       // 카메라 키 (LoL식): Space=캐릭터로 카메라 이동(누르는 동안 추적) / Y=캐릭터 고정 토글
       if (c === keyBind.camCenter) { if (e && e.preventDefault) e.preventDefault(); spaceFollow = true; centerCameraOn(P.x, P.y); return; }
       if (c === keyBind.camLock) { camLock = !camLock; log(`카메라 고정 ${camLock ? 'ON' : 'OFF'}`); if (camLock) centerCameraOn(P.x, P.y); return; }
+      // [보류] 현우 E 피하기: 끌려가는 중·벽꿍 기절 중에는 스킬·행동 입력 차단 (카메라 키는 위에서 허용)
+      // if (hwPlayerLocked()) return;
       // 입력 키 → 스킬 슬롯 변환 (커스텀 키 바인딩 + D/F 스왑 반영)
       let slot;
       if (c === keyBind.q) slot = 'q';
@@ -5272,11 +5585,11 @@
           }
         }
         else if (slot === 's') { moveTarget = null; P.atkTarget = null; P.wAutoTarget = null; wPending = null; dPending = null; aMode = false; P.atkWindup = false; P.atkWindupTarget = null; cancelAttack(); }
-        else if (slot === '`') { if (!vquizMode && !chalMode) document.getElementById('cd-reset-btn').click(); } // 퀴즈·챌린지: 쿨초 금지
+        else if (slot === '`') { if (!vquizMode && !chalMode /* [보류] && !hwMode */) document.getElementById('cd-reset-btn').click(); } // 퀴즈·챌린지: 쿨초 금지
         else if (slot === '1') { document.getElementById('cdr-down').click(); }
         else if (slot === '2') { document.getElementById('cdr-up').click(); }
-        else if (slot === '3') { if (!vquizMode && !chalMode) spawnDummy(mouse.x, mouse.y); } // 퀴즈·챌린지: 더미 조작 금지
-        else if (slot === '4') { if (!vquizMode && !chalMode) { const closest = dummies.filter(d => d.alive).sort((a, b) => dist(mouse, a) - dist(mouse, b))[0]; if (closest) closest.alive = false; } }
+        else if (slot === '3') { if (!vquizMode && !chalMode /* [보류] && !hwMode */) spawnDummy(mouse.x, mouse.y); } // 퀴즈·챌린지: 더미 조작 금지
+        else if (slot === '4') { if (!vquizMode && !chalMode /* [보류] && !hwMode */) { const closest = dummies.filter(d => d.alive).sort((a, b) => dist(mouse, a) - dist(mouse, b))[0]; if (closest) closest.alive = false; } }
       });
     }
     // Space(중앙이동 키)에서 손을 떼면 추적 중단
