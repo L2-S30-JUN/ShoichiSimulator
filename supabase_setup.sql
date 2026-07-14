@@ -8,9 +8,15 @@
 create table if not exists public.challenge_records (
   id bigint generated always as identity primary key,
   nickname text not null check (char_length(trim(nickname)) between 1 and 12),
-  clear_ms integer not null check (clear_ms between 10000 and 3600000), -- 10초 미만·1시간 초과 기록 거부 (조작 1차 방어)
+  clear_ms integer not null check (clear_ms between 3000 and 3600000), -- 3초 미만·1시간 초과 기록 거부 (조작 1차 방어)
   created_at timestamptz not null default now()
 );
+
+-- 기존 DB 마이그레이션: 하한 10초 → 3초 (10초 미만 정상 기록이 등록 거부되던 문제 수정)
+-- 인라인 check는 Postgres가 challenge_records_clear_ms_check 이름을 자동 부여한다.
+alter table public.challenge_records drop constraint if exists challenge_records_clear_ms_check;
+alter table public.challenge_records add constraint challenge_records_clear_ms_check
+  check (clear_ms between 3000 and 3600000);
 
 -- 랭킹 조회용 인덱스 (시간 오름차순 TOP N)
 create index if not exists challenge_records_clear_ms_idx on public.challenge_records (clear_ms asc);
