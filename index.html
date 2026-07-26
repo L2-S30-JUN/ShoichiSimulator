@@ -117,6 +117,50 @@
       border-color: #f44
     }
 
+    /* 클래식 "패시브 스택 저장": 충전분 아이콘(#stack-indicator) 바로 오른쪽에 저장된 스택 수만 표시.
+       저장분은 캐릭터 머리 위 스택 바에는 그리지 않고 이 아이콘으로만 보여준다. */
+    #stack-store {
+      position: fixed;
+      bottom: 80px;
+      left: calc(50% + 18px);
+      width: 24px;
+      height: 24px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      pointer-events: none
+    }
+
+    #stack-store.show {
+      display: flex
+    }
+
+    #stack-store::before {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      background: rgba(255, 140, 0, .22)
+    }
+
+    #stack-store .icon {
+      position: absolute;
+      inset: 0;
+      background: url('icon/tfixed.png') center/cover no-repeat;
+      border: 1px solid #444;
+      filter: grayscale(.55) brightness(.7);
+      z-index: 1
+    }
+
+    #stack-store .num {
+      position: relative;
+      font-size: 12px;
+      font-weight: bold;
+      color: #ffcf8a;
+      text-shadow: 0 0 3px #000, 0 0 2px #000, 1px 1px 0 #000;
+      z-index: 2
+    }
+
     .sk {
       width: 54px;
       height: 54px;
@@ -1301,6 +1345,76 @@
     #cd-warning.show {
       opacity: 1
     }
+
+    /* ── 3D 시뮬레이터(Unity WebGL) 오버레이 ── */
+    #unity3d-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 290;
+      /* 로비(280) 위, 크레딧·설정 모달(300) 아래 */
+      display: none;
+      background: #000
+    }
+
+    #unity3d-wrap.show {
+      display: block
+    }
+
+    /* 3D 카메라는 "화면 세로 1px = 월드 1px" 고정이라, 보이는 월드 범위가 뷰포트의 픽셀 높이에
+       그대로 비례한다 (Unity WebGL의 Screen.height = 캔버스의 화면상 CSS 높이).
+       브라우저 창은 exe 전체화면(1080px)보다 낮아서 그만큼 시야가 좁아진다 = 확대돼 보인다.
+       → iframe 자체를 1920×1080으로 고정하고 CSS transform으로 축소해 넣는다. 부모의 transform은
+       iframe 내부 좌표계에 영향을 주지 않으므로, 안쪽 Unity는 언제나 1920×1080으로 인식한다
+       (2D 본체가 1920×1280 디자인 캔버스를 CSS로 축소해 넣는 것과 같은 방식). */
+    #unity3d-frame {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      border: 0;
+      transform-origin: 0 0
+    }
+
+    #unity3d-load {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 32px;
+      text-align: center;
+      line-height: 1.6;
+      color: #b5aeaa;
+      font-size: 14px;
+      letter-spacing: .5px;
+      pointer-events: none;
+      background: #000
+    }
+
+    #unity3d-wrap.loaded #unity3d-load {
+      display: none
+    }
+
+    #unity3d-exit {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      padding: 6px 14px;
+      font-size: 12px;
+      border: 1px solid #3c3835;
+      border-radius: 4px;
+      background: rgba(8, 7, 7, .82);
+      color: #b5aeaa;
+      cursor: pointer
+    }
+
+    #unity3d-exit:hover {
+      background: rgba(24, 12, 10, .9);
+      border-color: #a03328;
+      color: #e8e2df
+    }
   </style>
 </head>
 
@@ -1393,6 +1507,23 @@
         <div style="font-size:10px;color:#888;text-align:center;margin-top:2px">버튼을 누르면 예시 콤보 쉐도우 재생</div>
       </div>
     </div>
+    <!-- 쇼이치 클래식 전용 옵션 — 클래식 모드에서만 표시 (enterClassicMode/exitClassicMode가 토글) -->
+    <div class="sec" data-sec="classic" id="classic-sec" style="display:none">
+      <button class="sec-hd">클래식 옵션<span class="arr">▾</span></button>
+      <div class="sec-bd">
+        <div style="font-size:12px"><label><input type="checkbox" id="classic-rdelay-chk"> 궁 시전시간 0.6초</label></div>
+        <div style="font-size:10px;color:#888;margin-top:1px">선딜 0.15 + 후딜 0.45초 (기본 0.2 + 0.6초)</div>
+        <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="classic-stack6-chk"> 패시브 6스택</label>
+        </div>
+        <div style="font-size:10px;color:#888;margin-top:1px">강화 평타까지 6스택 필요 (기본 5스택)</div>
+        <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="classic-dagstack-chk"> 패시브 단검이 스택
+            획득</label></div>
+        <div style="font-size:10px;color:#888;margin-top:1px">주운 단검이 날아가 적중하면 스택 +1</div>
+        <div style="margin-top:6px;font-size:12px"><label><input type="checkbox" id="classic-store-chk"> 패시브 스택
+            저장</label></div>
+        <div style="font-size:10px;color:#888;margin-top:1px">최대치 초과분을 최대 9스택(6스택 옵션 시 11)까지 저장 · 강화 평타는 5(6)개만 소모</div>
+      </div>
+    </div>
     <div style="margin-top:6px"><button id="settings-btn"
         style="width:100%;padding:4px 0;border:1px solid #555;border-radius:4px;background:#222;color:#ddd;font-size:12px;cursor:pointer">⚙
         설정</button></div>
@@ -1402,6 +1533,7 @@
     style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;z-index:1;">
     <canvas id="c"></canvas></div>
   <div id="stack-indicator"><span class="icon"></span><span class="num" id="stack-num">0</span></div>
+  <div id="stack-store"><span class="icon"></span><span class="num" id="stack-store-num">0</span></div>
   <div id="ghost-keys"></div>
   <div id="hud">
     <div class="sk ready" id="bQ"><span class="key">Q</span><img class="icon-img" id="qIcon" src="icon/shoqfix.png">
@@ -1634,6 +1766,10 @@
         </div>
         <button id="mode-smoke-btn">연막무스 파훼 시뮬레이터</button>
         <button id="mode-vquiz-btn">V자 각 퀴즈</button>
+        <!-- Unity 3D 이식판 — WebGL 빌드를 iframe으로 띄운다 (unity3d/ 폴더).
+             file:// 로 열면 wasm이 CORS에 막히므로 로컬 서버(serve.js) 필요 -->
+        <button id="mode-unity3d-btn" title="로컬 서버(node serve.js)로 열어야 동작합니다">3D 시뮬레이터 (실험)</button>
+        <button id="mode-classic-btn">쇼이치 클래식</button>
         <!-- [보류] 현우 E 피하기 모드 — 재활성화 시 아래 버튼과 JS의 [보류] 지점들을 함께 해제
         <button id="mode-hwe-btn">현우 E 피하기</button> -->
       </div>
@@ -1641,6 +1777,15 @@
         rel="noopener">쇼이치 시뮬레이터 v1.7 업데이트 내역</a>
       <div id="credit">ⓘ 본 사이트는 (주)님블뉴런의 '이터널리턴'을 바탕으로 제작된 2차 창작 사이트입니다.</div>
     </div>
+  </div>
+  <!-- 3D 시뮬레이터(Unity WebGL) — 로비(280) 위, 크레딧·설정 모달(300) 아래.
+       iframe으로 격리해 2D의 전역 변수·CSS·이벤트와 섞이지 않게 한다. 로비로 나갈 때
+       src를 about:blank로 되돌려 wasm 힙·AudioContext·rAF를 통째로 해제한다. -->
+  <div id="unity3d-wrap">
+    <iframe id="unity3d-frame" src="about:blank" title="3D 시뮬레이터"
+      allow="autoplay; fullscreen; pointer-lock"></iframe>
+    <div id="unity3d-load">3D 시뮬레이터 로딩 중…</div>
+    <button id="unity3d-exit">로비로 (Esc)</button>
   </div>
   <!-- 로비 랭킹 모달: 챌린지 결과창의 랭킹 UI(#chal-modal .lb*)와 스타일 공유 -->
   <div id="lb-modal">
@@ -1738,6 +1883,21 @@
     let cdrStat = 0;   // 쿨감 스탯 (0~130, 5단위)
     let cdResetMode = false; // 쿨타임 초기화 모드
     let chalMode = false;    // 더미 처치 챌린지 모드 — 쿨감·공속 등 연습 옵션을 원작 기본값으로 강제
+    // ── 쇼이치 클래식 모드 ──
+    // 일반 연습모드와 UI·로직을 그대로 공유하고, 아래 옵션들만 구버전 쇼이치 스펙으로 바꾼다.
+    // 각 옵션은 반드시 `classicMode && classicOpt.xxx`로 검사할 것 — 일반/챌린지/퀴즈 모드에 새면 안 된다.
+    let classicMode = false;
+    const classicOpt = {
+      rDelay: true,     // 궁(R) 시전시간 0.6초 = 선딜 0.15 + 후딜 0.45 (기본 선딜 0.2 + 후딜 0.6)
+      stack6: true,     // 패시브 최대 스택 6 (기본 5)
+      dagStack: true,   // 패시브 단검(회수 시 자동 투척)이 적중하면 스택 +1 (기본은 스택 없음)
+      stackStore: true, // 최대 스택을 넘겨 (최대-1)개까지 저장 — 5스택이면 9개, 6스택이면 11개까지
+    };
+    // 강화 평타 1회에 쓰이는 스택 수 = 패시브 최대 스택. CONF.stackMax를 직접 읽지 말고 이 함수를 쓴다
+    const stackMaxNow = () => (classicMode && classicOpt.stack6) ? 6 : CONF.stackMax;
+    // 실제로 쌓아둘 수 있는 상한. 저장 옵션 ON이면 최대치 한 번분에 (최대-1)개를 더 얹는다 (5→9, 6→11).
+    // 한 번분이 온전히 더 쌓이지는 않으므로 강화 평타가 연속 두 번 장전되는 일은 없다.
+    const stackCapNow = () => (classicMode && classicOpt.stackStore) ? stackMaxNow() * 2 - 1 : stackMaxNow();
     let rOnlyReset = false;  // 궁극기(R)만 쿨타임 초기화
     let blinkOnlyReset = false; // 블링크(무빙기)만 쿨타임 초기화
     let baseAsMult = 1.08;    // 기본 공격속도 (0.72 ~ 1.08)
@@ -2330,11 +2490,11 @@
     // PASSIVE STACKS
     // ============================================================
     function addStack() {
-      if (P.stacks < CONF.stackMax) {
+      if (P.stacks < stackCapNow()) {
         P.stacks++;
       }
       P.stackTimer = CONF.stackDur; // 스택 쌓일 때마다 5초 초기화
-      if (P.stacks >= CONF.stackMax) {
+      if (P.stacks >= stackMaxNow()) {
         P.enhancedAA = true;
       }
       updateStackUI();
@@ -2345,18 +2505,38 @@
       updateStackUI();
     }
 
+    // 강화 평타가 스택을 소모할 때 — 저장 옵션이 켜져 있으면 한 번분(최대치)만 차감하고 저장분은 남긴다.
+    // 남은 스택의 유지시간(stackTimer)은 이어서 흐른다 (마지막으로 쌓은 시점 기준 5초).
+    function spendEnhancedStacks() {
+      const m = stackMaxNow();
+      if (classicMode && classicOpt.stackStore && P.stacks > m) {
+        P.stacks -= m;
+        P.enhancedAA = P.stacks >= m; // 상한이 2×최대-1이라 여기서 다시 장전되는 일은 없다
+        updateStackUI();
+        return;
+      }
+      consumeStacks();
+    }
+
     function updateStackUI() {
       const si = document.getElementById('stack-indicator');
       const sn = document.getElementById('stack-num');
-      if (P.stacks > 0) {
+      const ss = document.getElementById('stack-store');
+      const ssn = document.getElementById('stack-store-num');
+      const m = stackMaxNow();
+      const cur = Math.min(P.stacks, m);        // 다음 강화 평타에 쓰일 충전분
+      const stored = Math.max(0, P.stacks - m); // 저장분 (클래식 저장 옵션에서만 발생)
+      if (cur > 0) {
         si.classList.add('show');
-        sn.textContent = P.stacks;
+        sn.textContent = cur;
         const pct = Math.max(0, Math.min(1, P.stackTimer / CONF.stackDur)) * 100;
         si.style.setProperty('--p', pct + '%');
-        si.classList.toggle('max', P.stacks >= CONF.stackMax);
+        si.classList.toggle('max', cur >= m);
       } else {
         si.classList.remove('show', 'max');
       }
+      if (stored > 0) { ss.classList.add('show'); ssn.textContent = stored; }
+      else ss.classList.remove('show');
     }
 
     // ============================================================
@@ -2391,7 +2571,7 @@
       if (tgt && tgt.alive) {
         if (recording) recKeys.push([Math.round(recTime * 1000), wasEnhanced ? 'eatk' : 'atk']); // 적중 확정된 평타/강화평타만 기록 (캔슬·빗나감 제외)
         if (wasEnhanced) {
-          consumeStacks();
+          spendEnhancedStacks(); // 저장 옵션 ON이면 한 번분(5·6스택)만 빠지고 나머지는 남는다
           hitDummy(tgt, CONF.enhancedAtkDmg + 40, atkAngle, false);
           sfxAtkHit();
           const behind = atkAngle;
@@ -2936,21 +3116,25 @@
         cancelScheduledByTag('R'); P.rCasting = false; P.rCastTimer = 0;
       }
       if (atkSwingLocked()) { skillBuffer = castR; skillBufferMouse = { x: mouse.x, y: mouse.y }; return; } // 평타 진행 중: 적중 순간 발동
-      P.rInternalCd = CONF.rCastTime;
+      // 클래식(궁 시전시간 0.6초) 옵션: 선딜 0.15 + 후딜 0.45 = 0.6초.
+      //  기본은 선딜 0.2 + 후딜 0.6이며, 내부쿨·UI용 rCastTime(0.9)은 원본 그대로 둔다.
+      const rClassic = classicMode && classicOpt.rDelay;
+      const preDelay = rClassic ? 0.15 : 0.2;
+      const rCastLen = rClassic ? 0.6 : CONF.rCastTime;
+      P.rInternalCd = rCastLen;
       if (P.eCasting && !P.eCanCancel) return; // E 선딜 0.2초 중 스킬 불가
       P.atkWindup = false; P.atkWindupTarget = null; cancelAttack();
       P.rCasting = true;
-      P.rCastTimer = CONF.rCastTime;
+      P.rCastTimer = rCastLen;
       moveTarget = null;
       sfxR();
       P.rCd = (rOnlyReset && !chalMode) ? 0 : applyCdr(CONF.rCd); // 궁극기만 쿨초기화 옵션 시 R 쿨다운 0 (챌린지 제외)
       smokeOnRCast(); // 연막무스 파훼: 궁 시전에 반응해 더미가 시전자 위치로 연막탄 투척
 
-      const preDelay = 0.2;   // 선딜 0.2초
-      const postDelay = 0.6;  // 후딜 0.6초
+      const postDelay = rClassic ? 0.45 : 0.6;  // 후딜 (기본 0.6초 · 클래식 0.45초)
 
 
-      // 선딜 0.2초 후 → 내부 AoE + X자 단검 순차 투척
+      // 선딜(기본 0.2 · 클래식 0.15초) 후 → 내부 AoE + X자 단검 순차 투척
       schedule(preDelay, () => {
         const castX = P.x, castY = P.y;
         let rAnyHit = false;
@@ -3287,7 +3471,7 @@
       if (P.stackTimer > 0) {
         P.stackTimer -= tick;
         if (P.stackTimer <= 0 && P.stacks > 0) { P.stacks = 0; P.enhancedAA = false; updateStackUI(); }
-        else if (P.stacks > 0 && P.stacks < CONF.stackMax) {
+        else if (P.stacks > 0 && P.stacks < stackMaxNow()) {
           const pct = Math.max(0, P.stackTimer / CONF.stackDur) * 100;
           document.getElementById('stack-indicator').style.setProperty('--p', pct + '%');
         }
@@ -3438,7 +3622,8 @@
         } else if (p.fromPassive) {
           // Passive throw
           if (p.target && p.target.alive && dist(p, p.target) < p.r + p.target.r) {
-            hitDummy(p.target, p.dmg, Math.atan2(p.vy, p.vx), false); // no stack from passive
+            // 기본은 패시브 투척으로 스택이 오르지 않는다. 클래식 옵션 ON이면 적중 시 스택 +1.
+            hitDummy(p.target, p.dmg, Math.atan2(p.vy, p.vx), classicMode && classicOpt.dagStack);
             sfxDaggerHit();
             p.life = 0;
           }
@@ -3759,9 +3944,11 @@
 
       // Stack orbs around player (deprecated — stack UI는 #stack-indicator로 대체)
 
-      // ---- 패시브 스택 바 (체력바 아래 위치, 원작 ER 스타일 5분할) ----
+      // ---- 패시브 스택 바 (체력바 아래 위치, 원작 ER 스타일 5분할 · 클래식 6스택이면 6분할) ----
+      // 저장분(최대치 초과 스택)은 여기 그리지 않는다 — 화면 아래 #stack-store 아이콘으로만 표시.
       {
-        const stacks = P.stacks, smax = CONF.stackMax;
+        const smax = stackMaxNow();
+        const stacks = Math.min(P.stacks, smax);
         const barW = 78, barH = 6, gap = 1.5;
         const segW = (barW - gap * (smax - 1)) / smax;
         const bx = px - barW / 2;
@@ -4483,6 +4670,9 @@
     let nextFrameT = 0;  // 다음 프레임 예정 시각 — 나머지 이월로 평균 fps를 목표에 맞춤 (모니터 주사율 약수로 양자화 방지)
     function loop(now) {
       requestAnimationFrame(loop);
+      // 3D 시뮬레이터 중에는 2D 시뮬을 통째로 정지 — 시간이 흐르면 쿨다운이 공짜로 회복되고,
+      // 안 보이는 캔버스를 계속 그리느라 3D의 프레임까지 갉아먹는다
+      if (unity3dActive) { lastTime = now; return; }
       // 커스텀 커서: 게임 FPS 제한과 무관하게 매 리프레시마다, 정수픽셀 translate3d로 1회 적용 (흐물거림 방지)
       if (cursorDirty) { cursorDirty = false; cursorEl.style.transform = `translate3d(${Math.round(cursorClientX - CURSOR_W / 2)}px,${Math.round(cursorClientY - CURSOR_H / 2)}px,0)`; }
       if (fpsInterval > 0) {
@@ -4600,15 +4790,78 @@
       e.target.blur(); // 포커스가 남으면 Space(카메라 키)로 버튼이 재클릭됨
       exitVquizMode(); // 퀴즈·챌린지 모드에서 로비를 거쳐 일반 연습으로 들어오는 경우 필드·UI 복원
       exitChalMode();
+      exitClassicMode();
       // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       if (!maybeShowF11Notice()) lockPointer();
     });
     document.getElementById('esc-resume').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); lockPointer(); });
     document.getElementById('esc-settings').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); syncCamFixedChk(); document.getElementById('settings-modal').classList.add('show'); });
-    document.getElementById('esc-lobby').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); inLobby = true; lobbyEl.style.display = 'flex'; exitVquizMode(); exitChalMode(); /* [보류] exitHwMode(); */ });
+    document.getElementById('esc-lobby').addEventListener('click', e => { e.target.blur(); escMenuEl.classList.remove('show'); inLobby = true; lobbyEl.style.display = 'flex'; exitVquizMode(); exitChalMode(); exitClassicMode(); /* [보류] exitHwMode(); */ });
     // 메뉴 바깥(어두운 배경) 클릭 = 계속하기
     escMenuEl.addEventListener('mousedown', e => { if (e.target === escMenuEl) { escMenuEl.classList.remove('show'); lockPointer(); } });
+
+    // ============================================================
+    // 쇼이치 클래식 모드
+    // ============================================================
+    // 필드·UI·로직은 일반 연습모드와 완전히 동일하고, 오른쪽 패널에 "클래식 옵션" 섹션만 추가로 열린다.
+    // 각 옵션의 실제 적용 지점: 궁 선딜 → castR(), 6스택 → stackMaxNow(), 패시브 단검 스택 → 투사체 적중부.
+    const classicSecEl = document.getElementById('classic-sec');
+
+    // 스택 상한이 바뀌면(옵션 토글·모드 전환) 현재 스택을 새 상한에 맞춰 정리한다
+    function classicSyncStacks() {
+      const cap = stackCapNow(), m = stackMaxNow();
+      if (P.stacks > cap) P.stacks = cap;
+      P.enhancedAA = P.stacks >= m; // 상한이 내려가면 강화평타 장전, 올라가면 해제
+      updateStackUI();
+    }
+
+    function enterClassicMode() {
+      classicMode = true;
+      classicSecEl.style.display = '';
+      consumeStacks(); // 다른 모드에서 이월된 스택·강화평타 제거 (상한이 다르므로 초기화하고 시작)
+      log('쇼이치 클래식 모드 — 오른쪽 "클래식 옵션"에서 세부 조정');
+    }
+
+    function exitClassicMode() {
+      if (!classicMode) return;
+      classicMode = false;
+      classicSecEl.style.display = 'none';
+      classicSyncStacks(); // 6스택·저장분 → 기본 5스택 상한으로 복귀
+    }
+
+    // 옵션 체크박스 (브라우저에 기억)
+    (() => {
+      const defs = [
+        ['rDelay', 'classic-rdelay-chk', '궁 시전시간 0.6초'],
+        ['stack6', 'classic-stack6-chk', '패시브 6스택'],
+        ['dagStack', 'classic-dagstack-chk', '패시브 단검 스택 획득'],
+        ['stackStore', 'classic-store-chk', '패시브 스택 저장'],
+      ];
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem('shoichiClassicOpt') || '{}') || {}; } catch (e) { }
+      defs.forEach(([key, id, label]) => {
+        if (typeof saved[key] === 'boolean') classicOpt[key] = saved[key];
+        const el = document.getElementById(id);
+        el.checked = classicOpt[key];
+        el.addEventListener('change', () => {
+          classicOpt[key] = el.checked;
+          try { localStorage.setItem('shoichiClassicOpt', JSON.stringify(classicOpt)); } catch (e) { }
+          if (key === 'stack6' || key === 'stackStore') classicSyncStacks(); // 상한이 바뀌므로 현재 스택 정리
+          log(`클래식: ${label} ${el.checked ? 'ON' : 'OFF'}`);
+        });
+      });
+    })();
+
+    document.getElementById('mode-classic-btn').addEventListener('click', e => {
+      e.target.blur();
+      exitVquizMode();
+      exitChalMode();
+      // [보류] exitHwMode();
+      inLobby = false; lobbyEl.style.display = 'none';
+      if (!maybeShowF11Notice()) lockPointer();
+      enterClassicMode();
+    });
     // ============================================================
     // V자 각 퀴즈 모드 / 연막무스 파훼 시뮬레이터
     // ============================================================
@@ -4791,6 +5044,7 @@
     document.getElementById('mode-vquiz-btn').addEventListener('click', e => {
       e.target.blur();
       exitChalMode();
+      exitClassicMode();
       // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       if (!maybeShowF11Notice()) lockPointer();
@@ -4800,10 +5054,72 @@
     document.getElementById('mode-smoke-btn').addEventListener('click', e => {
       e.target.blur();
       exitChalMode();
+      exitClassicMode();
       // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       if (!maybeShowF11Notice()) lockPointer();
       enterVquizMode(true); // 연막무스 파훼 변형
+    });
+
+    // ============================================================
+    // 3D 시뮬레이터 (Unity WebGL) — iframe 격리
+    // ============================================================
+    // 2D와 같은 문서에 Unity 로더를 넣으면 전역이 오염되고 왕복 시 wasm 힙이 안 풀린다.
+    // iframe에 가둬두고, 나갈 때 src를 about:blank로 되돌려 통째로 언로드한다.
+    // 3D가 떠 있는 동안 2D 루프(loop)와 입력 핸들러는 unity3dActive 가드로 완전히 멈춘다 —
+    // 안 그러면 3D를 하는 사이 2D 쪽 쿨다운·타이머가 흘러버린다.
+    let unity3dActive = false;
+    const u3dWrap = document.getElementById('unity3d-wrap');
+    const u3dFrame = document.getElementById('unity3d-frame');
+    const u3dLoad = document.getElementById('unity3d-load');
+
+    // 3D 뷰포트를 exe와 같은 1920×1080으로 고정하고, 창 크기에 맞춰 통째로 축소 배치(레터박스).
+    // 창 픽셀 높이를 그대로 쓰면 보이는 월드 범위가 창 높이에 비례해 좁아진다(= 확대돼 보인다).
+    const U3D_W = 1920, U3D_H = 1080;
+    function fitUnity3D() {
+      const w = u3dWrap.clientWidth || window.innerWidth;
+      const h = u3dWrap.clientHeight || window.innerHeight;
+      const s = Math.min(w / U3D_W, h / U3D_H);
+      u3dFrame.style.transform =
+        `translate(${(w - U3D_W * s) / 2}px, ${(h - U3D_H * s) / 2}px) scale(${s})`;
+    }
+    window.addEventListener('resize', () => { if (unity3dActive) fitUnity3D(); });
+
+    function enterUnity3D() {
+      exitVquizMode(); exitChalMode(); exitClassicMode();
+      // [보류] exitHwMode();
+      inLobby = false; lobbyEl.style.display = 'none';
+      unity3dActive = true;
+      edgeActive = false;                 // 2D 가장자리 카메라 스크롤 정지
+      cursorEl.style.display = 'none';    // 2D 커스텀 커서 숨김 (Unity가 자체 커서를 그린다)
+      u3dWrap.classList.add('show');
+      u3dWrap.classList.remove('loaded');
+      fitUnity3D(); // 표시 직후(레이아웃 확정 후) 1920×1080 → 창 크기로 축소 배치
+      // file://에서는 wasm/fetch가 CORS로 막혀 아예 뜨지 않는다 — 검은 화면 대신 안내를 띄운다
+      if (location.protocol === 'file:') {
+        u3dLoad.textContent = '3D 시뮬레이터는 로컬 서버에서만 동작합니다. 이 폴더에서 "node serve.js"를 실행한 뒤 http://localhost:8000 으로 접속하세요.';
+        return;
+      }
+      u3dLoad.textContent = '3D 시뮬레이터 로딩 중…';
+      u3dFrame.src = 'unity3d/index.html';
+      u3dFrame.addEventListener('load', () => u3dWrap.classList.add('loaded'), { once: true });
+      setTimeout(() => u3dFrame.focus(), 0); // 키 입력을 iframe으로 넘긴다
+    }
+
+    function exitUnity3D() {
+      if (!unity3dActive) return;
+      u3dFrame.src = 'about:blank';       // ★ 언로드 = wasm 힙·AudioContext·rAF 전부 해제
+      u3dWrap.classList.remove('show', 'loaded');
+      unity3dActive = false;
+      inLobby = true; lobbyEl.style.display = 'flex';
+      window.focus();
+    }
+
+    document.getElementById('mode-unity3d-btn').addEventListener('click', e => { e.target.blur(); enterUnity3D(); });
+    document.getElementById('unity3d-exit').addEventListener('click', e => { e.target.blur(); exitUnity3D(); });
+    // Unity 쪽에서 나가기를 눌렀을 때 (.jslib에서 parent.postMessage) — 아직 미구현이지만 미리 받아둔다
+    window.addEventListener('message', e => {
+      if (e.source === u3dFrame.contentWindow && e.data && e.data.type === 'shoichi3d-exit') exitUnity3D();
     });
 
     // ============================================================
@@ -5039,6 +5355,7 @@
     document.getElementById('mode-chal-btn').addEventListener('click', e => {
       e.target.blur();
       exitVquizMode();
+      exitClassicMode();
       // [보류] exitHwMode();
       inLobby = false; lobbyEl.style.display = 'none';
       lockPointer(); // 챌린지는 F11 안내 팝업 없이 바로 시작 (카운트다운 방해 방지)
@@ -5344,6 +5661,7 @@
       edgeNY = py / window.innerHeight;
     }
     document.addEventListener('mousemove', e => {
+      if (unity3dActive) return; // 3D 중 — 2D 조준·엣지 스크롤 갱신 차단
       if (isLocked) {
         // 잠금 직후 이벤트·비정상 대형 델타(브라우저 스파이크)는 폐기 — 커서 순간이동(감도 튐) 방지
         if (plockSkipEvents > 0) { plockSkipEvents--; return; }
@@ -5474,6 +5792,9 @@
     document.addEventListener('keydown', e => {
       if (e.repeat) return; // 키 홀드 시 자동 반복 입력 무시
       const c = e.code; // 물리 키 기반: 한/영 입력 상태와 무관 (macOS 한글 IME 대응)
+      // 3D 시뮬레이터 중: Esc로만 로비 복귀, 나머지 키는 2D로 흘리지 않는다
+      // (보통은 iframe이 키를 가져가지만, 종료 버튼 클릭 직후처럼 포커스가 부모로 새는 순간이 있다)
+      if (unity3dActive) { if (c === 'Escape') exitUnity3D(); return; }
       // 설정창의 키 변경 입력 대기 중이면 게임 입력 대신 바인딩 처리
       if (captureSlot) {
         e.preventDefault();
@@ -5615,8 +5936,8 @@
       }
       if (!ALL_SLOTS.some(s => keyBind[s] === c)) return; // 미바인딩 버튼은 브라우저 기본 동작(뒤로가기 등) 유지
       e.preventDefault();
-      // 키보드와 동일한 입력 차단 규칙 (로비·Esc 메뉴·모달 중에는 발동하지 않되, 뒤로가기 소비는 위에서 이미 처리)
-      if (inLobby || escMenuEl.classList.contains('show')) return;
+      // 키보드와 동일한 입력 차단 규칙 (로비·3D·Esc 메뉴·모달 중에는 발동하지 않되, 뒤로가기 소비는 위에서 이미 처리)
+      if (inLobby || unity3dActive || escMenuEl.classList.contains('show')) return;
       if (document.querySelector('#settings-modal.show,#notice-modal.show,#chal-modal.show')) return;
       dispatchGameInput(c, e);
     });

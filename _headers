@@ -1,0 +1,23 @@
+# Cloudflare Pages / Netlify 응답 헤더 설정 (사이트 루트에 두면 배포 시 자동 적용)
+#
+# Unity WebGL 빌드는 Brotli로 압축돼 있다(.unityweb). 서버가 Content-Encoding을 알려주지
+# 않으면 Unity 로더가 JS로 직접 압축을 풀어야 해서 시작이 느려진다. 아래 헤더를 붙이면
+# 브라우저가 네이티브로 해제한다.
+#
+# 이 파일이 없어도 게임은 뜬다 — Decompression Fallback이 켜져 있어서 JS 해제로 대체된다.
+# 순수하게 로딩 속도 최적화용.
+#
+# 주의: 확장자는 .br이 아니라 .unityweb 이다 (Decompression Fallback을 켜면 Unity가 이 이름을 쓴다).
+#       파일명이 안 맞으면 규칙이 조용히 무시되고 느린 경로로 떨어진다.
+
+/unity3d/Build/*.wasm.unityweb
+  Content-Encoding: br
+  Content-Type: application/wasm
+
+/unity3d/Build/*.data.unityweb
+  Content-Encoding: br
+  Content-Type: application/octet-stream
+
+/unity3d/Build/*.js.unityweb
+  Content-Encoding: br
+  Content-Type: text/javascript
