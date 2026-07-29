@@ -66,6 +66,26 @@
       text-align: center;
       white-space: pre-wrap
     }
+
+    /* 이 페이지를 단독으로 열었을 때만 뜬다.
+       캔버스가 창 크기를 그대로 쓰므로 화면 배율이 원작과 어긋난다 —
+       부모(index.html)를 거치면 iframe이 1920×1080으로 고정돼 정확히 맞는다.
+       여기서 직접 레터박스를 하면 Emscripten의 마우스 좌표 계산
+       (rect.left는 transform 반영, clientWidth는 미반영)이 깨지므로 안내만 띄운다. */
+    #solo {
+      display: none;
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      max-width: 420px;
+      padding: 6px 10px;
+      border: 1px solid #6b4a1e;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, .72);
+      color: #e0a04f;
+      font: 11px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      pointer-events: none
+    }
   </style>
 </head>
 
@@ -76,6 +96,7 @@
     <div class="bar"><i id="boot-bar"></i></div>
     <div id="boot-msg"></div>
   </div>
+  <div id="solo"></div>
 
   <script src="Build/unity3d.loader.js"></script>
   <script>
@@ -84,18 +105,28 @@
     var bootBar = document.querySelector("#boot-bar");
     var bootMsg = document.querySelector("#boot-msg");
 
+    // 단독 실행 감지. 부모를 거치지 않으면 창 높이가 그대로 Screen.height가 되어
+    // exe(1080px) 대비 (1080/높이)배 확대돼 보인다 — 조작감 대조가 무의미해지는 상태라 명시한다.
+    if (window.parent === window) {
+      var solo = document.querySelector("#solo");
+      var h = document.documentElement.clientHeight;
+      solo.textContent = "단독 실행 — 화면 " + h + "px이라 exe(1080px) 대비 x"
+        + (1080 / h).toFixed(2) + " 확대됩니다. 배율을 맞추려면 상위 폴더의 index.html을 열어"
+        + " \"3D 시뮬레이터\"로 진입하세요 (iframe이 1920x1080으로 고정됩니다).";
+      solo.style.display = "block";
+    }
+
     // 우클릭 이동이 핵심 조작이라 브라우저 컨텍스트 메뉴를 반드시 막는다.
     // (Unity WebGL 로더는 이걸 대신 해주지 않는다 — 안 막으면 이동 자체가 불가능)
     window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     // 마우스4·5(뒤로/앞으로)로 히스토리가 이동해버리는 것도 차단
     window.addEventListener("mousedown", function (e) { if (e.button === 3 || e.button === 4) e.preventDefault(); });
 
-    // iframe 안에서 Esc → 부모에게 로비 복귀 요청 (부모는 이 메시지를 받아 iframe을 언로드한다)
-    window.addEventListener("keydown", function (e) {
-      if (e.code === "Escape" && window.parent !== window) {
-        window.parent.postMessage({ type: "shoichi3d-exit" }, "*");
-      }
-    });
+    // Esc는 게임 안에서 설정창을 여닫는 키다(DebugSimView.cs). 여기서 로비 복귀까지 걸면
+    // 한 번의 Esc가 두 동작을 동시에 일으켜 "설정창이 열리자마자 로비로 튕기는" 상태가 된다.
+    // 그래서 Esc → 나가기는 걸지 않는다. 로비 복귀는 부모가 항상 띄워 두는 '로비로' 버튼이 맡는다.
+    // (부모의 'shoichi3d-exit' 수신부는 그대로 살아 있으므로, 나중에 게임 안에 나가기 UI를
+    //  만들면 거기서 postMessage를 쏘면 된다.)
 
     createUnityInstance(canvas, {
       dataUrl: "Build/unity3d.data.unityweb",

@@ -72,3 +72,122 @@ select * from (values
    E'''쇼이치 클래식'' 모드 추가\n- 궁 시전시간 0.6초 (선딜 0.15 + 후딜 0.45초)\n- 패시브 최대 6스택 옵션\n- 패시브 스택 저장 — 최대 9스택 (6스택 옵션 시 11스택)\n- 패시브 단검이 적중하면 스택 획득\n3D 시뮬레이터(실험) 로비 버튼 추가\n3D 화면 배율을 exe 전체화면과 동일하게 수정')
 ) as v(ver, released_on, video_url, body)
 where not exists (select 1 from public.site_updates);
+
+
+-- ============================================================
+-- 사이트 문구 설정 (site_config)
+-- 재배포 없이 이 표의 value만 고치면 사이트 문구가 바뀐다.
+-- ============================================================
+-- 쓰는 곳:
+--   season_name       현재 시즌 이름. 로비 '랭킹' 모달 제목에 붙는다
+--   update_link_text  로비의 업데이트 내역 링크 문구. '{ver}' 자리에 최신 버전이 들어간다
+--                     (예: '쇼이치 시뮬레이터 {ver} 업데이트 내역' → '쇼이치 시뮬레이터 v1.9 업데이트 내역')
+--   hof_title         명예의 전당 모달 제목
+-- 값을 빈 문자열로 두면 셸이 내장 기본값을 쓴다 — 실수로 비워도 문구가 사라지지 않는다.
+create table if not exists public.site_config (
+  key text primary key,
+  value text not null default '',
+  note text,                              -- 이 값이 어디에 쓰이는지 메모 (사이트는 읽지 않는다)
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_config enable row level security;
+
+drop policy if exists "anyone can read site config" on public.site_config;
+create policy "anyone can read site config"
+  on public.site_config for select
+  using (true);
+-- insert/update/delete 정책 없음 → anon 키로는 문구를 위조할 수 없다
+
+-- 기본 문구 (이미 있는 키는 건드리지 않는다 — 대시보드에서 고친 값을 덮어쓰지 않기 위해)
+insert into public.site_config (key, value, note) values
+  ('season_name',      '시즌 2',                            '로비 랭킹 모달 제목에 붙는 현재 시즌 이름'),
+  ('update_link_text', '쇼이치 시뮬레이터 {ver} 업데이트 내역', '{ver} 자리에 site_updates의 최신 ver이 들어간다'),
+  ('hof_title',        '명예의 전당',                        '명예의 전당 모달 제목')
+on conflict (key) do nothing;
+
+
+-- ============================================================
+-- 명예의 전당 (hall_of_fame) — 마감된 시즌의 TOP 10 보존
+-- ============================================================
+-- challenge_records는 "현재 시즌"만 담는다. 시즌을 마감할 때 그 시점의 TOP 10을 여기로
+-- 옮겨 적고 challenge_records를 비운다 (아래 '시즌 마감 절차' 참고).
+-- 순위·닉네임·기록을 그 시점 그대로 박제하므로, 나중에 랭킹 규칙이 바뀌어도 흔들리지 않는다.
+create table if not exists public.hall_of_fame (
+  id bigint generated always as identity primary key,
+  season integer not null,                -- 1, 2, 3 ...
+  season_name text not null default '',   -- 비우면 사이트가 '시즌 N'으로 표시한다
+  rank integer not null check (rank >= 1),
+  nickname text not null,
+  clear_ms integer not null,
+  recorded_at timestamptz,                -- 원래 기록이 등록된 시각 (challenge_records.created_at)
+  archived_at timestamptz not null default now(),
+  unique (season, rank)
+);
+
+create index if not exists hall_of_fame_order_idx on public.hall_of_fame (season desc, rank asc);
+
+alter table public.hall_of_fame enable row level security;
+
+drop policy if exists "anyone can read hall of fame" on public.hall_of_fame;
+create policy "anyone can read hall of fame"
+  on public.hall_of_fame for select
+  using (true);
+-- insert/update/delete 정책 없음 → 지난 시즌 기록은 anon 키로 건드릴 수 없다
+
+
+-- ============================================================
+-- 시즌 마감 절차 (시즌 1 → 시즌 2)
+-- ============================================================
+-- ⚠ 아래 블록은 challenge_records를 **비운다**. 되돌릴 수 없다.
+--   위의 create/insert 문과 달리 "여러 번 실행해도 안전"하지 않으므로 한 번만 실행할 것.
+--   (on conflict do nothing + 아래 not exists 가드로 두 번째 실행은 아무 일도 하지 않지만,
+--    새 시즌 기록이 쌓인 뒤에 다시 돌리면 그 기록이 지워진다.)
+--
+-- 실행 전 확인: 아래 select로 박제될 10명을 눈으로 보고 나서 do 블록을 돌리는 것을 권한다.
+--   select distinct on (nickname) nickname, clear_ms, created_at
+--     from public.challenge_records order by nickname, clear_ms asc, created_at asc;
+do $$
+begin
+  -- 이미 시즌 1을 박제했다면 통째로 건너뛴다 (실수로 두 번 돌려 기록을 날리는 것 방지)
+  if exists (select 1 from public.hall_of_fame where season = 1) then
+    raise notice '시즌 1은 이미 명예의 전당에 있습니다 — 건너뜁니다';
+    return;
+  end if;
+
+  -- 닉네임당 최고 기록 1개만 추린 뒤(도배 방지 — challenge_best 뷰와 같은 규칙) 상위 10명을 박제
+  insert into public.hall_of_fame (season, season_name, rank, nickname, clear_ms, recorded_at)
+  select 1,
+         '시즌 1',
+         row_number() over (order by clear_ms asc, created_at asc),
+         nickname,
+         clear_ms,
+         created_at
+  from (
+    select distinct on (nickname) nickname, clear_ms, created_at
+    from public.challenge_records
+    order by nickname, clear_ms asc, created_at asc
+  ) best
+  order by clear_ms asc, created_at asc
+  limit 10;
+
+  -- 시즌 2 시작 — 현재 시즌 기록을 비운다
+  delete from public.challenge_records;
+
+  raise notice '시즌 1 마감 완료. 명예의 전당 % 명 등재, 현재 랭킹 초기화',
+    (select count(*) from public.hall_of_fame where season = 1);
+end $$;
+
+
+-- ============================================================
+-- 참고: challenge_best 뷰
+-- ============================================================
+-- 사이트의 현재 시즌 랭킹은 이 뷰를 읽는다 (닉네임당 최고 기록 1개 = 도배 방지).
+-- 이 뷰는 원래 대시보드에서 직접 만들어져 이 파일에 없었다. 위 마감 절차가 같은 규칙을
+-- 쓰므로, 규칙이 한 곳에만 적혀 있지 않도록 여기에도 남겨 둔다.
+-- ⚠ 이미 뷰가 있다면 아래를 실행할 필요가 없다. 실행하려면 컬럼 구성이 같아야 하고,
+--   다르면 create or replace가 실패하므로 그때만 drop view 후 다시 만들 것.
+-- create or replace view public.challenge_best as
+--   select distinct on (nickname) nickname, clear_ms, created_at
+--     from public.challenge_records
+--    order by nickname, clear_ms asc, created_at asc;

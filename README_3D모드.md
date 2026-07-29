@@ -1,14 +1,18 @@
-# v1.7 + Unity 3D 하이브리드 (임시)
+# v1.9 — Unity 3D 전용 (2D 본체 제거)
+
+v1.8까지는 2D 캔버스 게임이 본편이고 3D가 부가 모드였다. v1.9에서 **2D 본체를 걷어내고
+3D 시뮬레이터를 본편으로 승격**했다. 로비의 "게임 시작"이 곧 3D 진입이다.
 
 원본 `ShoichiSimulator_v1.7/`는 **골든 트레이스 추출 기준이라 동결**한다.
-2D 로직을 손봐야 할 일이 생기면 원본에서 하고, 이 폴더는 통합분으로만 유지한다.
+Unity 이식의 정답지이므로 어떤 이유로도 수정하지 않는다.
+2D 모드 UI·진입 코드가 필요하면 `ShoichiSimulator_v1.8/index.html`에 그대로 남아 있다.
 
 ## 실행
 
 Unity WebGL은 `file://`에서 뜨지 않는다(wasm/fetch가 CORS로 차단). 반드시 로컬 서버로 연다.
 
 ```
-cd E:\claude\ShoichiSimulator_v1.7_hybrid
+cd E:\claude\ShoichiSimulator_v1.9
 node serve.js
 ```
 → 브라우저에서 `http://localhost:8000` (포트를 바꾸려면 `node serve.js 8123`)
@@ -16,41 +20,60 @@ node serve.js
 `python -m http.server 8000`도 되지만, `.wasm`을 `application/wasm`으로 내려줘야
 스트리밍 컴파일이 되므로 MIME이 맞는 `serve.js`를 권한다.
 
-2D 모드(일반 연습·챌린지·V자 퀴즈·연막무스)는 `file://`로도 그대로 동작한다.
-**3D 시뮬레이터 버튼만** 로컬 서버를 요구한다.
+v1.8과 달리 **`file://`로는 로비 말고 할 수 있는 게 없다.** 본편이 3D라 서버가 필수다.
+그 경우 로비에서 안내 문구를 띄우고 iframe을 아예 로드하지 않는다.
 
 ## 구조
 
 ```
-index.html     2D 본체 + 3D 진입 코드 (원본 대비 6곳 패치)
+index.html     로비 + 3D 진입 + 설정/랭킹/업데이트 내역 (2D 게임 코드 없음)
 serve.js       로컬 정적 서버 (wasm MIME 포함)
 unity3d/       Unity WebGL 빌드 산출물 (Build/, index.html)
 ```
 
-## index.html 패치 지점
+## index.html에 남은 것 / 빠진 것
 
-원본과의 차이는 전부 `[임시]` 주석으로 표시했다. 되돌리려면 이 6곳만 지우면 된다.
+**남긴 것** — 3D가 그대로 재사용하거나, 3D 모드가 붙으면 바로 쓸 것들:
 
-| 위치 | 내용 |
+| 요소 | 이유 |
 |---|---|
-| `<style>` 끝 | `#unity3d-wrap` 등 오버레이 CSS (z-index 290 — 로비 280 위, 모달 300 아래) |
-| 로비 `.modes` | `#mode-unity3d-btn` 버튼 |
-| `#lobby-screen` 다음 | `#unity3d-wrap` iframe 컨테이너 |
-| `mode-smoke-btn` 핸들러 다음 | `enterUnity3D()` / `exitUnity3D()` + postMessage 수신 |
-| `loop()` 첫 줄 | `if (unity3dActive) { lastTime = now; return; }` |
-| `keydown` / `mousemove` / `mousedown` | `unity3dActive` 입력 가드 |
+| `#settings-modal` | 키 바인딩·음량·입력지연 — Unity에 `SendMessage`로 넘긴다 |
+| `#chal-modal` + Supabase | 챌린지 결과창·기록 등록·TOP10. 3D 챌린지가 붙으면 `openChalResult(clearMs, {onRetry, onLobby})` 한 줄로 재사용 |
+| `#lb-modal` | 로비 → "랭킹" |
+| `#notice-modal` | F11 전체화면·마우스 제스처 안내 (3D 진입 시 1회) |
+| `#credit-modal` · `UPDATE_LOG` | 크레딧 / 업데이트 내역 (Supabase `site_updates`, 실패 시 코드 내 fallback) |
+| 로비 모드 버튼 4개 | `disabled` + "3D 제작 중" 배지 상태로 목록에 남겨둠 — 자리를 유지해야 나중에 레이아웃이 안 흔들린다 |
+
+**뺀 것** — 2D 캔버스에 묶여 있어 3D 재설계가 필요한 것들:
+게임 루프·렌더러·입력 처리 전부, 더미 처치 챌린지, V자 각 퀴즈, 연막무스 파훼,
+쇼이치 클래식, 콤보 녹화/재생(`#combo-modal`, `COMBO_VER 13` 코덱).
+이식 설계는 `ShoichiSimulator_Unity\Ref\MODE_PORT_SPEC.md` 참고.
+
+되살리는 순서는 `index.html`의 `── [보류] 3D 재구현 대기 모드 ──` 주석 블록에 적어뒀다.
 
 ## 설계 메모
 
 - **iframe 격리**: 같은 문서에 Unity 로더를 넣으면 전역이 오염되고, `unityInstance.Quit()`이
   비동기라 로비를 왕복할수록 wasm 힙이 쌓인다. iframe에 가두고 나갈 때 `src='about:blank'`로
   통째로 언로드한다.
-- **2D 루프 정지**: 3D 중 `loop()`를 즉시 반환시킨다. 안 그러면 3D를 하는 동안 2D 쪽
-  쿨다운·챌린지 타이머가 흘러버리고, 안 보이는 캔버스를 계속 그려 3D 프레임까지 갉아먹는다.
 - **Esc**: 브라우저가 iframe 안에서 Esc를 소비하므로, 부모의 "로비로" 버튼을 항상 띄워둔다.
   포커스가 부모에 있을 때는 Esc로도 나갈 수 있다.
-- **포인터 잠금 충돌 없음**: v1.7은 `plockOn=false`(macOS Safari 이슈로 보류)라 부모가
+- **포인터 잠금 충돌 없음**: `plockOn=false`(macOS Safari 이슈로 보류)라 부모가
   잠금을 걸지 않는다. Unity WebGL 쪽도 `CursorLockMode.Confined`를 껐다(브라우저 미지원).
+- **1920×1080 고정 + CSS 축소(`fitUnity3D`)**: 3D 카메라는 "화면 세로 1px = 월드 1px"이라
+  보이는 월드 범위가 뷰포트의 픽셀 높이에 그대로 비례한다. 창 픽셀을 그냥 쓰면 exe
+  전체화면(1080px)보다 낮은 만큼 시야가 좁아져 확대돼 보인다. iframe을 1920×1080으로
+  고정하고 부모에서 `transform: scale()`로 줄여 넣으면, 부모의 transform은 iframe 내부
+  좌표계에 영향을 주지 않으므로 안쪽 Unity는 언제나 1080px로 인식한다. v1.7~v1.8의 2D 본체가
+  1920×1280 디자인 캔버스를 CSS로 축소해 넣던 것과 같은 방식이다.
+  **반드시 이 `index.html`을 거쳐서 열 것** — `unity3d/index.html`을 직접 열면 캔버스가
+  창 높이를 그대로 써서 그만큼 확대돼 보인다(디스플레이 배율 125%면 864px = ×1.25).
+  게임 좌상단에 `[!] 화면 NNNpx` 경고가 뜨면 이 상태다.
+  레터박스를 iframe 안에서 처리하지 않는 이유: Emscripten의 마우스 좌표 계산이
+  `(e.pageX - rect.left) × (canvas.width / clientWidth)`인데 `rect.left`만 transform이
+  반영돼서 커서가 어긋난다. 부모-iframe 경계는 브라우저가 변환해주므로 문제가 없다.
+- **`file://` 차단 안내**: 그 경우 로더가 CORS에 막혀 검은 화면만 남으므로,
+  iframe을 아예 로드하지 않고 `#unity3d-load`에 안내 문구를 띄운다.
 
 ## WebGL 이식에서 실제로 터진 것들 (윈도우 빌드에선 안 보이던 문제)
 
@@ -76,7 +99,10 @@ Unity 쪽 수정은 전부 `ShoichiSimulator_Unity/`에 있다. 재이식할 때
 
 ## 3D 쪽 미구현
 
-챌린지·Supabase 랭킹·맵 비주얼은 아직 Unity에 없다. 3D 모드는 일반 연습만 제공한다.
+Unity에는 아직 **일반 연습(더미 상대 연습)만** 있다. 챌린지·V자 각 퀴즈·연막무스 파훼·
+쇼이치 클래식·콤보 녹화는 미구현이고, 맵 비주얼도 임시 지형이다.
+로비의 랭킹 UI와 Supabase 통신은 HTML 쪽에 이미 살아 있으므로,
+Unity가 클리어 타임만 `postMessage`로 올려주면 결과창·기록 등록은 바로 붙는다.
 
 ## 재빌드
 
@@ -84,7 +110,7 @@ Unity 쪽 수정은 전부 `ShoichiSimulator_Unity/`에 있다. 재이식할 때
 "C:\Program Files\Unity\Hub\Editor\6000.0.32f1\Editor\Unity.exe" -batchmode -nographics ^
   -projectPath E:\claude\ShoichiSimulator_Unity\UnityProject ^
   -executeMethod Shoichi.EditorTools.WebGLBuild.Build ^
-  -buildOut E:\claude\ShoichiSimulator_v1.7_hybrid\unity3d -logFile webgl_build.log
+  -buildOut E:\claude\ShoichiSimulator_v1.9\unity3d -logFile webgl_build.log
 ```
 
 에디터에서는 메뉴 `Shoichi > Build WebGL (hybrid)`.
