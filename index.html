@@ -726,7 +726,7 @@
       <div class="ttl">쇼이치 시뮬레이터</div>
       <div class="sub">이터널리턴 쇼이치 연습 시뮬레이터</div>
       <button id="lobby-start-btn" title="로컬 서버(node serve.js)로 열어야 동작합니다">게임 시작</button>
-      <!-- 모드 목록. 4개 모두 3D로 재구현되어 활성 상태다 — 진입 핸들러는 JS의
+      <!-- 모드 목록. 6개 모두 3D로 재구현되어 활성 상태다 — 진입 핸들러는 JS의
            '3D 챌린지 진입' / '나머지 3D 모드 진입' 블록에 있다.
            2D 원본 로직·수치는 ShoichiSimulator_v1.7\index.html(동결)에,
            쇼이치 클래식과 콤보 모달의 원본은 ShoichiSimulator_v1.8\index.html에 있다. -->
@@ -736,6 +736,8 @@
           <button id="lobby-rank-btn" title="더미 처치 챌린지 랭킹 보기">랭킹</button>
         </div>
         <button id="mode-vquiz-btn" title="궁 단검 4개 사이로 비약을 넣어 2초 안에 3번 맞히세요">V자 각 퀴즈</button>
+        <button id="mode-aim-btn" title="랜덤 위치에 놓인 궁 단검 2개에 커서를 얹고 W로 비약, 200회까지 걸린 시간을 재세요">단검 에임 연습</button>
+        <button id="mode-mine-btn" title="광물을 둘러싼 궁 단검 4개를 1→2→3→4 순서로, 1초 안에 전부 비약으로 타세요">광물타기 연습</button>
         <button id="mode-classic-btn" title="구버전 패시브 규칙(6스택·스택 저장 등)으로 연습합니다">쇼이치 클래식</button>
         <button id="mode-hof-btn" title="지난 시즌 더미 처치 챌린지 TOP 10">명예의 전당</button>
       </div>
@@ -1202,6 +1204,23 @@
     // (같은 파일에 있던 '연막무스 파훼'는 2026-07-29에 모드째 삭제됐다)
     document.getElementById('mode-vquiz-btn')
       .addEventListener('click', enterMode('vquiz-enter', 'OnShellVquizCommand'));
+
+    // 단검 에임 연습 — DebugSimView.Aim.cs
+    // 원본(v1.7/v1.8)에 없는 3D 신규 모드다. 아레나 안 랜덤 위치에 궁 단검 2개가 놓이고,
+    // 커서를 얹고 W를 누르면 그 자리로 비약하며 회수한다. 하나가 사라지면 즉시 하나가 새로
+    // 생겨 항상 2개가 유지된다. 단검 회수가 W 쿨을 0.05초로 되돌리는 쇼이치 기믹 덕분에
+    // 계속 이어 쓸 수 있고, 빗나간 W는 쿨을 소모하지 않는다.
+    document.getElementById('mode-aim-btn')
+      .addEventListener('click', enterMode('aim-enter', 'OnShellAimCommand'));
+
+    // 광물타기 연습 — DebugSimView.Mine.cs
+    // 원본(v1.7/v1.8)에 없는 3D 신규 모드다. 광물을 둘러싸고 궁 단검 4개가 X자로 깔리고
+    // 1·2·3·4 번호가 랜덤으로 붙는다. 번호 순서대로 제한 시간(기본 1초) 안에 전부 비약으로
+    // 타면 성공, 순서가 틀리거나 시간을 넘기면 V자 각 퀴즈처럼 새 번호로 다시 깔린다.
+    // 번호는 항상 시계/반시계 한 방향이다 — 대각선은 6.7m로 비약 사거리(5.5m) 밖이라
+    // 대각선이 연속되는 순서는 애초에 깰 수 없다.
+    document.getElementById('mode-mine-btn')
+      .addEventListener('click', enterMode('mine-enter', 'OnShellMineCommand'));
 
     // 쇼이치 클래식 — DebugSimView.Classic.cs
     // 옵션 4개(궁 시전 0.6초·6스택·단검 스택·스택 저장)는 Unity가 PlayerPrefs로 기억하고
