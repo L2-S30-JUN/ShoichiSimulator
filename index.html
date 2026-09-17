@@ -418,7 +418,7 @@
       width: 56px
     }
 
-    /* 3D 재구현 대기 중인 모드 — 목록에는 계속 보이되 누를 수 없다 */
+    /* 잠가 둔 모드 — 목록에는 계속 보이되 누를 수 없다 (지금은 더미 처치 챌린지) */
     #lobby-screen .modes button:disabled {
       opacity: .45;
       cursor: default
@@ -440,6 +440,73 @@
       border: 1px solid #6e2a24;
       border-radius: 3px;
       vertical-align: 1px
+    }
+
+    /* 첫 방문 안내 (2026-09-16): 원작과 조작감이 다르다는 고지. 하루 동안 다시 보지 않기(localStorage) */
+    #intro-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 320
+    }
+
+    #intro-modal.show {
+      display: flex
+    }
+
+    #intro-modal .box {
+      background: #1a1a2a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 22px 26px;
+      width: 480px;
+      color: #ddd;
+      font-size: 14px;
+      line-height: 1.7;
+      text-align: center
+    }
+
+    #intro-modal .ttl {
+      font-size: 16px;
+      font-weight: bold;
+      color: #fc5;
+      margin-bottom: 10px
+    }
+
+    #intro-modal .msg {
+      word-break: keep-all;
+      white-space: nowrap
+    }
+
+    #intro-modal .msg .warn {
+      color: #ff6a5a;
+      font-weight: bold
+    }
+
+    #intro-modal label {
+      display: block;
+      margin: 14px 0 10px;
+      font-size: 12px;
+      color: #aaa;
+      cursor: pointer
+    }
+
+    #intro-modal .btn {
+      display: inline-block;
+      padding: 8px 26px;
+      border: 1px solid #5af;
+      border-radius: 6px;
+      background: #223;
+      color: #dff;
+      font-size: 14px;
+      cursor: pointer
+    }
+
+    #intro-modal .btn:hover {
+      background: #2c3d5a
     }
 
     /* 챌린지 결과창 / 랭킹 모달 — 3D 챌린지가 붙을 때 그대로 재사용한다 */
@@ -726,19 +793,22 @@
       <div class="ttl">쇼이치 시뮬레이터</div>
       <div class="sub">이터널리턴 쇼이치 연습 시뮬레이터</div>
       <button id="lobby-start-btn" title="로컬 서버(node serve.js)로 열어야 동작합니다">게임 시작</button>
-      <!-- 모드 목록. 6개 모두 3D로 재구현되어 활성 상태다 — 진입 핸들러는 JS의
+      <!-- 모드 목록. 6개 모두 3D로 재구현돼 있다. 더미 처치 챌린지는 2026-09-13에 disabled로 잠갔다가
+           2026-09-16에 다시 열었다 (잠그려면 mode-chal-btn에 disabled만 붙이면 된다). 진입 핸들러는 JS의
            '3D 챌린지 진입' / '나머지 3D 모드 진입' 블록에 있다.
+           쇼이치 클래식은 2026-09-13부터 로비 모드가 아니라 게임 안 옵션 패널의 설정이다
+           ('게임 시작' → 좌측 패널 '쇼이치 클래식' 섹션).
            2D 원본 로직·수치는 ShoichiSimulator_v1.7\index.html(동결)에,
            쇼이치 클래식과 콤보 모달의 원본은 ShoichiSimulator_v1.8\index.html에 있다. -->
       <div class="modes">
         <div class="chal-row">
-          <button id="mode-chal-btn" title="체력 6000 더미를 최대한 빨리 처치하세요">더미 처치 챌린지</button>
+          <button id="mode-chal-btn" title="더미를 처치하는 데 걸린 시간을 재고 랭킹에 올립니다">더미 처치 챌린지</button>
           <button id="lobby-rank-btn" title="더미 처치 챌린지 랭킹 보기">랭킹</button>
         </div>
         <button id="mode-vquiz-btn" title="궁 단검 4개 사이로 비약을 넣어 2초 안에 3번 맞히세요">V자 각 퀴즈</button>
-        <button id="mode-aim-btn" title="랜덤 위치에 놓인 궁 단검 2개에 커서를 얹고 W로 비약, 200회까지 걸린 시간을 재세요">단검 에임 연습</button>
+        <button id="mode-aim-btn" title="궁 단검 2개에 커서를 얹고 W로 비약, 200회까지 걸린 시간을 재세요 — 가끔 삼각·별 패턴이 섞여 나옵니다">단검 에임 연습</button>
         <button id="mode-mine-btn" title="광물을 둘러싼 궁 단검 4개를 1→2→3→4 순서로, 1초 안에 전부 비약으로 타세요">광물타기 연습</button>
-        <button id="mode-classic-btn" title="구버전 패시브 규칙(6스택·스택 저장 등)으로 연습합니다">쇼이치 클래식</button>
+        <button id="mode-duel-btn" title="같은 킷을 가진 쇼이치 봇과 1 vs 1 — 같은 HP로 시작해 먼저 0이 되는 쪽이 집니다. 시작 전에 레벨·무기 숙련도·장비(보라템/풀템, 나무위키 계수·고유 효과)를 고르면 봇도 같은 능력치로 싸웁니다">쇼이치 봇 1 vs 1</button>
         <button id="mode-hof-btn" title="지난 시즌 더미 처치 챌린지 TOP 10">명예의 전당</button>
       </div>
       <!-- 문구는 UPDATE_LOG의 맨 위 버전에서 자동으로 채워진다 -->
@@ -777,6 +847,15 @@
         <button class="btn main" id="chal-retry-btn">다시 도전</button>
         <button class="btn" id="chal-lobby-btn">로비로</button>
       </div>
+    </div>
+  </div>
+  <!-- 첫 방문 안내 (2026-09-16). 텍스트는 정적이고 사용자 입력은 체크박스뿐이라 innerHTML을 쓰지 않는다. -->
+  <div id="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-ttl">
+    <div class="box">
+      <div class="ttl" id="intro-ttl">안내</div>
+      <div class="msg">해당 시뮬레이터는 <span class="warn">원작과 조작감이 다르기 때문에</span>,<br>되도록 인게임 연습모드에서 쇼이치를 연습해주시길 바랍니다.</div>
+      <label><input type="checkbox" id="intro-hide-day"> 하루 동안 다시 보지 않기</label>
+      <button class="btn" id="intro-ok-btn">확인</button>
     </div>
   </div>
   <!-- 랭킹 모달 (로비 → '랭킹') — 결과창의 랭킹 UI(#chal-modal .lb*)와 스타일을 공유한다 -->
@@ -1206,10 +1285,14 @@
       .addEventListener('click', enterMode('vquiz-enter', 'OnShellVquizCommand'));
 
     // 단검 에임 연습 — DebugSimView.Aim.cs
-    // 원본(v1.7/v1.8)에 없는 3D 신규 모드다. 아레나 안 랜덤 위치에 궁 단검 2개가 놓이고,
-    // 커서를 얹고 W를 누르면 그 자리로 비약하며 회수한다. 하나가 사라지면 즉시 하나가 새로
-    // 생겨 항상 2개가 유지된다. 단검 회수가 W 쿨을 0.05초로 되돌리는 쇼이치 기믹 덕분에
-    // 계속 이어 쓸 수 있고, 빗나간 W는 쿨을 소모하지 않는다.
+    // 원본(v1.7/v1.8)에 없는 3D 신규 모드다. 아레나 안에 궁 단검 2개가 놓이고, 커서를 얹고
+    // W를 누르면 그 자리로 비약하며 회수한다. 하나가 사라지면 즉시 하나가 새로 생겨 항상
+    // 2개가 유지된다. 단검 회수가 W 쿨을 0.05초로 되돌리는 쇼이치 기믹 덕분에 계속 이어 쓸
+    // 수 있고, 빗나간 W는 쿨을 소모하지 않는다.
+    // 배치는 대체로 랜덤이지만 가끔 짧은 패턴(삼각·별) 한 덩이가 섞인다 — 배치 열에 한둘쯤.
+    // 표적 수는 언제나 2개 그대로다. 왕복 계열·완만한 점프·사각형(궁 단검 배치)은 표적이
+    // 2개인 이 모드와 맞지 않아 넣지 않았다 — 이유는 SimWorld.Aim.cs의 [패턴 섞기] 참고.
+    // 진짜 궁 단검 배치를 타는 연습은 광물타기 연습이 그 일만 한다.
     document.getElementById('mode-aim-btn')
       .addEventListener('click', enterMode('aim-enter', 'OnShellAimCommand'));
 
@@ -1222,12 +1305,21 @@
     document.getElementById('mode-mine-btn')
       .addEventListener('click', enterMode('mine-enter', 'OnShellMineCommand'));
 
-    // 쇼이치 클래식 — DebugSimView.Classic.cs
-    // 옵션 4개(궁 시전 0.6초·6스택·단검 스택·스택 저장)는 Unity가 PlayerPrefs로 기억하고
-    // 게임 안 우측 "클래식 옵션" 섹션에서 토글한다. 셸이 보낼 필요가 없다
-    // (지정하고 싶으면 'enter:stack6=0,store=1' 형식을 쓸 수 있다).
-    document.getElementById('mode-classic-btn')
-      .addEventListener('click', enterMode('enter', 'OnClassicCommand'));
+    // 쇼이치 봇 1 vs 1 — DebugSimView.Duel.cs (2026-09-13)
+    // 원본(v1.7/v1.8)에 없는 3D 신규 모드다. 같은 킷을 가진 봇과 같은 HP로 맞붙어 먼저 0이 되는
+    // 쪽이 진다. 봇은 HP 달린 더미 + 두뇌로 구현돼 플레이어 스킬 코드는 손대지 않았고, 봇의 킷은
+    // SimWorld.Duel.cs가 같은 수치로 흉내낸다. 난이도(하·중·상)·시작 HP는 게임 안 우상단에서 고른다.
+    // 레벨(6~20)·무기 숙련도(1~20)·장비 5부위(보라템/풀템)는 준비 단계(우상단)에서 정하고 시작하면 잠긴다 — 봇도 같은 값을 쓴다.
+    // 공격력·스킬 증폭·체력·방어력·스킬 피해 계수·장비 고유 효과는 나무위키의 이터널리턴 수치(SimCore/ErStats.cs · ErEffects.cs), 특성은 ErTraits.cs.
+    // 쿨초기화 모드·쇼이치 클래식은 대전에 적용되지 않는다.
+    document.getElementById('mode-duel-btn')
+      .addEventListener('click', enterMode('duel-enter', 'OnShellDuelCommand'));
+
+    // 쇼이치 클래식 — 2026-09-13부터 로비 모드가 아니다 (DebugSimView.Classic.cs)
+    // 기본 연습모드('게임 시작')의 좌측 옵션 패널 '쇼이치 클래식' 섹션에서 체크박스로 켜고 끈다.
+    // 켜짐 여부와 옵션 5개(궁 시전 0.6초·6스택·단검 스택·스택 저장·구버전 단검무스)는 Unity가
+    // PlayerPrefs로 기억한다. Unity의 OnClassicCommand 진입점은 남아 있어 필요하면
+    // sendToUnity('OnClassicCommand', 'enter:stack6=0') 식으로 부를 수는 있다.
 
     // '시즌 12 미리보기' 모드는 2026-07-30에 삭제됐다. 그 모드의 단검무스 리워크가
     // 기본 거동이 되면서 진입해도 달라지는 것이 없어졌기 때문이다. v1.7의 은신 단검무스는
@@ -1495,6 +1587,21 @@
         m.classList.remove('show');
         const fn = noticeThen; noticeThen = null;
         if (fn) fn(); // 팝업 때문에 미뤄둔 3D 진입 재개
+      });
+    })();
+
+    // ── 첫 방문 안내 (2026-09-16): 원작과 조작감이 다르다는 고지. 로비가 뜰 때 표시하고
+    //    '하루 동안 다시 보지 않기'면 localStorage(shoichiIntroHideUntil)에 만료 시각을 둔다. 텍스트는 정적(innerHTML 미사용).
+    (() => {
+      const m = document.getElementById('intro-modal');
+      const chk = document.getElementById('intro-hide-day');
+      let hidden = false;
+      try { hidden = Date.now() < +(localStorage.getItem('shoichiIntroHideUntil') || 0); } catch (e) { }
+      if (!hidden) { chk.checked = false; m.classList.add('show'); }
+      document.getElementById('intro-ok-btn').addEventListener('click', e => {
+        e.currentTarget.blur();
+        if (chk.checked) { try { localStorage.setItem('shoichiIntroHideUntil', String(Date.now() + 24 * 60 * 60 * 1000)); } catch (e2) { } }
+        m.classList.remove('show');
       });
     })();
 
