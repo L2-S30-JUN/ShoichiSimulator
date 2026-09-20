@@ -794,7 +794,7 @@
       <div class="sub">이터널리턴 쇼이치 연습 시뮬레이터</div>
       <button id="lobby-start-btn" title="로컬 서버(node serve.js)로 열어야 동작합니다">게임 시작</button>
       <!-- 모드 목록. 6개 모두 3D로 재구현돼 있다. 더미 처치 챌린지는 2026-09-13에 disabled로 잠갔다가
-           2026-09-16에 다시 열었다 (잠그려면 mode-chal-btn에 disabled만 붙이면 된다). 진입 핸들러는 JS의
+           2026-09-16에 다시 열었고, 2026-09-20에 다시 disabled로 잠갔다 (열려면 disabled만 떼면 된다). 진입 핸들러는 JS의
            '3D 챌린지 진입' / '나머지 3D 모드 진입' 블록에 있다.
            쇼이치 클래식은 2026-09-13부터 로비 모드가 아니라 게임 안 옵션 패널의 설정이다
            ('게임 시작' → 좌측 패널 '쇼이치 클래식' 섹션).
@@ -802,7 +802,7 @@
            쇼이치 클래식과 콤보 모달의 원본은 ShoichiSimulator_v1.8\index.html에 있다. -->
       <div class="modes">
         <div class="chal-row">
-          <button id="mode-chal-btn" title="더미를 처치하는 데 걸린 시간을 재고 랭킹에 올립니다">더미 처치 챌린지</button>
+          <button id="mode-chal-btn" disabled title="준비 중 — 잠시 닫아 두었습니다">더미 처치 챌린지</button>
           <button id="lobby-rank-btn" title="더미 처치 챌린지 랭킹 보기">랭킹</button>
         </div>
         <button id="mode-vquiz-btn" title="궁 단검 4개 사이로 비약을 넣어 2초 안에 3번 맞히세요">V자 각 퀴즈</button>
