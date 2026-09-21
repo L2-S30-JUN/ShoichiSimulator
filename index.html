@@ -1127,7 +1127,7 @@
         return;
       }
       u3dLoad.textContent = '3D 시뮬레이터 로딩 중…';
-      u3dFrame.src = 'unity3d/index.html';
+      u3dFrame.src = 'unity3d/index.html?variant=v22';   // v2.2 변형 (2026-09-20): 궁단검 3 m + 보정 줌 + Q/R·E 이동 규칙. 빌드는 v2.1과 같다
       u3dFrame.addEventListener('load', () => u3dWrap.classList.add('loaded'), { once: true });
       setTimeout(() => u3dFrame.focus(), 0); // 키 입력을 iframe으로 넘긴다
     }
